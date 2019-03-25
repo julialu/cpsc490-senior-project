@@ -2,11 +2,11 @@
 #tuned as in https://www.researchgate.net/publication/306187492_Deep_Convolutional_Neural_Networks_and_Data_Augmentation_for_Environmental_Sound_Classification
 
 import numpy as np
-from keras.models import Model
-from keras.layers import Input, GRU, Dense, Dropout, Activation, Flatten, LSTM, TimeDistributed, Reshape, Bidirectional, BatchNormalization
-from keras.callbacks import EarlyStopping, ModelCheckpoint, History
-from keras import optimizers
-from keras import regularizers
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, GRU, Dense, Dropout, Activation, Flatten, LSTM, TimeDistributed, Reshape, Bidirectional, BatchNormalization, Add
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, History
+from tensorflow.keras import optimizers
+from tensorflow.keras import regularizers
 import utilities_func as uf
 import loadconfig
 import ConfigParser
@@ -20,36 +20,36 @@ cfg.read(config)
 
 #load parameters from config file
 NEW_MODEL = cfg.get('model', 'save_model')
-TRAINING_PREDICTORS = cfg.get('model', 'training_predictors_load')
-TRAINING_TARGET = cfg.get('model', 'training_target_load')
-VALIDATION_PREDICTORS = cfg.get('model', 'validation_predictors_load')
+SPEECH_TRAIN_PRED = cfg.get('model', 'training_predictors_load')
+SPEECH_TRAIN_TARGET = cfg.get('model', 'training_target_load')
+SPEECH_VALID_PRED = cfg.get('model', 'validation_predictors_load')
 VALIDATION_TARGET = cfg.get('model', 'validation_target_load')
 SEQ_LENGTH = cfg.getint('preprocessing', 'sequence_length')
-print "Training predictors: " + TRAINING_PREDICTORS
-print "Training target: " + TRAINING_TARGET
-print "Validation predictors: " + VALIDATION_PREDICTORS
+print "Training predictors: " + SPEECH_TRAIN_PRED
+print "Training target: " + SPEECH_TRAIN_TARGET
+print "Validation predictors: " + SPEECH_VALID_PRED
 print "Validation target: " + VALIDATION_TARGET
 
 #load datasets
-training_predictors = np.load(TRAINING_PREDICTORS)
-training_target = np.load(TRAINING_TARGET)
-validation_predictors = np.load(VALIDATION_PREDICTORS)
+speech_train_x = np.load(SPEECH_TRAIN_PRED)
+train_target = np.load(SPEECH_TRAIN_TARGET)
+speech_valid_x = np.load(SPEECH_VALID_PRED)
 validation_target = np.load(VALIDATION_TARGET)
 
 #rescale datasets to mean 0 and std 1 (validation with respect
 #to training mean and std)
-tr_mean = np.mean(training_predictors)
-tr_std = np.std(training_predictors)
-v_mean = np.mean(validation_predictors)
-v_std = np.std(validation_predictors)
-training_predictors = np.subtract(training_predictors, tr_mean)
-training_predictors = np.divide(training_predictors, tr_std)
-validation_predictors = np.subtract(validation_predictors, tr_mean)
-validation_predictors = np.divide(validation_predictors, tr_std)
+tr_mean = np.mean(speech_train_x)
+tr_std = np.std(speech_train_x)
+v_mean = np.mean(speech_valid_x)
+v_std = np.std(speech_valid_x)
+speech_train_x = np.subtract(speech_train_x, tr_mean)
+speech_train_x = np.divide(speech_train_x, tr_std)
+speech_valid_x = np.subtract(speech_valid_x, tr_mean)
+speech_valid_x = np.divide(speech_valid_x, tr_std)
 
 #normalize target between 0 and 1
-training_target = np.multiply(training_target, 0.5)
-training_target = np.add(training_target, 0.5)
+train_target = np.multiply(train_target, 0.5)
+train_target = np.add(train_target, 0.5)
 validation_target = np.multiply(validation_target, 0.5)
 validation_target = np.add(validation_target, 0.5)
 
@@ -57,7 +57,7 @@ validation_target = np.add(validation_target, 0.5)
 batch_size = 100
 num_epochs = 200
 lstm1_depth = 250
-hidden_size = 8
+feature_vector_size = 512
 drop_prob = 0.3
 dense_size = 100
 regularization_lambda = 0.01
@@ -73,8 +73,8 @@ def batch_CCC(y_true, y_pred):
     CCC = 1-CCC
     return CCC
 
-time_dim = training_predictors.shape[1]
-features_dim = training_predictors.shape[2]
+time_dim = speech_train_x.shape[1]
+features_dim = speech_train_x.shape[2]
 
 #callbacks
 best_model = ModelCheckpoint(NEW_MODEL, monitor='val_loss', save_best_only=True, mode='min')  #save the best model
@@ -82,23 +82,38 @@ early_stopping_monitor = EarlyStopping(patience=5)  #stop training when the mode
 callbacks_list = [early_stopping_monitor, best_model]
 
 #model definition
-input_data = Input(shape=(time_dim, features_dim))
-gru = Bidirectional(GRU(lstm1_depth, return_sequences=True))(input_data)
+speech_input = Input(shape=(time_dim, features_dim))
+print (time_dim, features_dim)
+gru = Bidirectional(GRU(lstm1_depth, return_sequences=True))(speech_input)
 norm = BatchNormalization()(gru)
-hidden = TimeDistributed(Dense(hidden_size, activation='linear'))(norm)
-drop = Dropout(drop_prob)(hidden)
+speech_features = TimeDistributed(Dense(feature_vector_size, activation='linear'))(norm)
+
+
+# TO DO VIDEO MODEL
+# video_input = 
+# video_features = TimeDistributed(Dense(feature_vector_size, activation='linear'))(norm)
+
+# attention weights
+# concatenate inputs
+att_dense1 = TimeDistributed(Dense(64, activation='linear'))(speech_input)
+att_dense2 = TimeDistributed(Dense(32, activation='linear'))(att_dense1)
+att_weights = TimeDistributed(Dense(2, activation='linear'))(att_dense2)
+
+fused_features = TimeDistributed(Add()[speech_features, video_features]) # how to do weighted sum?
+
+drop = Dropout(drop_prob)(fused_features)
 flat = Flatten()(drop)
 out = Dense(SEQ_LENGTH, activation='linear')(flat)
 
 #model creation
-valence_model = Model(inputs=input_data, outputs=out)
+valence_model = Model(inputs=[speech_input, video_input], outputs=out)
 #valence_model.compile(loss=batch_CCC, optimizer=opt)
 valence_model.compile(loss=batch_CCC, optimizer=opt)
 
 print valence_model.summary()
 
 #model training
-history = valence_model.fit(training_predictors, training_target, epochs = num_epochs, validation_data=(validation_predictors,validation_target), callbacks=callbacks_list, batch_size=batch_size, shuffle=True)
+history = valence_model.fit([speech_train_x, video_train_x], train_target, epochs = num_epochs, validation_data=([speech_valid_x, video_valid_x],validation_target), callbacks=callbacks_list, batch_size=batch_size, shuffle=True)
 
 print "Train loss = " + str(min(history.history['loss']))
 print "Validation loss = " + str(min(history.history['val_loss']))
