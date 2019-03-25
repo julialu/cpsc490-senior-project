@@ -19,7 +19,7 @@ cfg = ConfigParser.ConfigParser()
 cfg.read(config)
 
 #load parameters from config file
-NEW_CONV_MODEL = cfg.get('model', 'save_model')
+NEW_MODEL = cfg.get('model', 'save_model')
 TRAINING_PREDICTORS = cfg.get('model', 'training_predictors_load')
 TRAINING_TARGET = cfg.get('model', 'training_target_load')
 VALIDATION_PREDICTORS = cfg.get('model', 'validation_predictors_load')
@@ -77,7 +77,7 @@ time_dim = training_predictors.shape[1]
 features_dim = training_predictors.shape[2]
 
 #callbacks
-best_model = ModelCheckpoint(NEW_CONV_MODEL, monitor='val_loss', save_best_only=True, mode='min')  #save the best model
+best_model = ModelCheckpoint(NEW_MODEL, monitor='val_loss', save_best_only=True, mode='min')  #save the best model
 early_stopping_monitor = EarlyStopping(patience=5)  #stop training when the model is not improving
 callbacks_list = [early_stopping_monitor, best_model]
 

@@ -151,7 +151,7 @@ def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', ta
         print datapoint
         annotation_file = annotation_folder + '/' + datapoint
         name = datapoint.split('.')[0]
-        sound_file = sound_folder + '/' + name +".mp4.wav"  #get correspective sound
+        sound_file = sound_folder + '/' + name +".wav"  #get correspective sound
         long_predictors, long_target = preprocess_datapoint(sound_file, annotation_file)  #compute features
         cut_predictors, cut_target = segment_datapoint(long_predictors, long_target,   #slice feature maps
                                                         SEQ_LENGTH, SEQ_OVERLAP)
