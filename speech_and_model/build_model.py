@@ -3,7 +3,7 @@
 
 import numpy as np
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, GRU, Dense, Dropout, Activation, Flatten, LSTM, TimeDistributed, Reshape, Bidirectional, BatchNormalization, Add
+from tensorflow.keras.layers import Input, GRU, Dense, Dropout, Activation, Flatten, LSTM, TimeDistributed, Reshape, Bidirectional, BatchNormalization, Add, RepeatVector, Lambda, Multiply
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, History
 from tensorflow.keras import optimizers
 from tensorflow.keras import regularizers
@@ -53,6 +53,10 @@ train_target = np.add(train_target, 0.5)
 validation_target = np.multiply(validation_target, 0.5)
 validation_target = np.add(validation_target, 0.5)
 
+print speech_train_x.shape
+print speech_valid_x.shape
+print train_target.shape
+print validation_target.shape
 #hyperparameters
 batch_size = 100
 num_epochs = 200
@@ -83,23 +87,33 @@ callbacks_list = [early_stopping_monitor, best_model]
 
 #model definition
 speech_input = Input(shape=(time_dim, features_dim))
-print (time_dim, features_dim)
+
 gru = Bidirectional(GRU(lstm1_depth, return_sequences=True))(speech_input)
 norm = BatchNormalization()(gru)
 speech_features = TimeDistributed(Dense(feature_vector_size, activation='linear'))(norm)
 
 
 # TO DO VIDEO MODEL
-# video_input = 
-# video_features = TimeDistributed(Dense(feature_vector_size, activation='linear'))(norm)
+ #placeholders for testing
+video_input = Input(shape=(200, features_dim))
+video_features = TimeDistributed(Dense(feature_vector_size, activation='linear'))(norm)
 
 # attention weights
-# concatenate inputs
+# TODO concatenate inputs
 att_dense1 = TimeDistributed(Dense(64, activation='linear'))(speech_input)
 att_dense2 = TimeDistributed(Dense(32, activation='linear'))(att_dense1)
-att_weights = TimeDistributed(Dense(2, activation='linear'))(att_dense2)
+att_weights = TimeDistributed(Dense(2, activation='softmax'))(att_dense2)
 
-fused_features = TimeDistributed(Add()[speech_features, video_features]) # how to do weighted sum?
+# this results in a [batch_size, feature_vector_size, # inputs] tensor
+repeat_att_weights = TimeDistributed(RepeatVector(feature_vector_size))(att_weights)
+
+w_1 = TimeDistributed(Lambda(lambda x: x[:,:,0]))(repeat_att_weights)
+w_2 = TimeDistributed(Lambda(lambda x: x[:,:,1]))(repeat_att_weights)
+
+speech_scaled = Multiply()([w_1, speech_features])
+video_scaled = Multiply()([w_2, video_features])
+
+fused_features = Add()([speech_scaled, video_scaled])
 
 drop = Dropout(drop_prob)(fused_features)
 flat = Flatten()(drop)
@@ -113,6 +127,7 @@ valence_model.compile(loss=batch_CCC, optimizer=opt)
 print valence_model.summary()
 
 #model training
+print 'Training...'
 history = valence_model.fit([speech_train_x, video_train_x], train_target, epochs = num_epochs, validation_data=([speech_valid_x, video_valid_x],validation_target), callbacks=callbacks_list, batch_size=batch_size, shuffle=True)
 
 print "Train loss = " + str(min(history.history['loss']))
