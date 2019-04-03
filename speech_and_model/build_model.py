@@ -61,7 +61,7 @@ print validation_target.shape
 batch_size = 100
 num_epochs = 200
 lstm1_depth = 250
-feature_vector_size = 512
+feature_vector_size = 256
 drop_prob = 0.3
 dense_size = 100
 regularization_lambda = 0.01
@@ -88,27 +88,29 @@ callbacks_list = [early_stopping_monitor, best_model]
 #model definition
 speech_input = Input(shape=(time_dim, features_dim))
 
-gru = Bidirectional(GRU(lstm1_depth, return_sequences=True))(speech_input)
+gru = Bidirectional(GRU(lstm1_depth, return_sequences=False))(speech_input)
 norm = BatchNormalization()(gru)
-speech_features = TimeDistributed(Dense(feature_vector_size, activation='linear'))(norm)
-
+speech_features = Dense(feature_vector_size, activation='linear')(norm)
 
 # TO DO VIDEO MODEL
  #placeholders for testing
 video_input = Input(shape=(200, features_dim))
-video_features = TimeDistributed(Dense(feature_vector_size, activation='linear'))(norm)
+video_features = Dense(feature_vector_size, activation='linear')(norm)
 
 # attention weights
 # TODO concatenate inputs
-att_dense1 = TimeDistributed(Dense(64, activation='linear'))(speech_input)
-att_dense2 = TimeDistributed(Dense(32, activation='linear'))(att_dense1)
-att_weights = TimeDistributed(Dense(2, activation='softmax'))(att_dense2)
+att_input = Flatten()(speech_input)
+att_dense1 = Dense(64, activation='linear')(att_input)
+att_dense2 = Dense(32, activation='linear')(att_dense1)
+att_weights = Dense(2, activation='softmax')(att_dense2)
+
+print(att_weights.shape)
 
 # this results in a [batch_size, feature_vector_size, # inputs] tensor
-repeat_att_weights = TimeDistributed(RepeatVector(feature_vector_size))(att_weights)
+repeat_att_weights = RepeatVector(feature_vector_size)(att_weights)
 
-w_1 = TimeDistributed(Lambda(lambda x: x[:,:,0]))(repeat_att_weights)
-w_2 = TimeDistributed(Lambda(lambda x: x[:,:,1]))(repeat_att_weights)
+w_1 = Lambda(lambda x: x[:,:,0])(repeat_att_weights)
+w_2 = Lambda(lambda x: x[:,:,1])(repeat_att_weights)
 
 speech_scaled = Multiply()([w_1, speech_features])
 video_scaled = Multiply()([w_2, video_features])
@@ -116,8 +118,9 @@ video_scaled = Multiply()([w_2, video_features])
 fused_features = Add()([speech_scaled, video_scaled])
 
 drop = Dropout(drop_prob)(fused_features)
-flat = Flatten()(drop)
-out = Dense(SEQ_LENGTH, activation='linear')(flat)
+hidden1 = Dense(128, activation='linear')(drop)
+hidden2 = Dense(64, activation='linear')(hidden1)
+out = Dense(1, activation='linear')(hidden2)
 
 #model creation
 valence_model = Model(inputs=[speech_input, video_input], outputs=out)
