@@ -184,3 +184,60 @@ def gen_fake_annotations(frames_count, output_folder):
         temp_dict = {'valence':valence}
         temp_df = pandas.DataFrame(data=temp_dict)
         temp_df.to_csv(file_name, index=False)
+
+
+class multi_input_generator():
+  
+  # x1 is audio, x2 is video
+  def __init__(self,x1,x2,y,seq_len,batch_size,frames_per_annotation):
+    
+    self.x1 = x1
+    self.x2 = x2
+    self.y = y
+    
+    self.seq_len = seq_len
+    self.sample_size = self.y.shape[0]
+    
+    self.f = self.x1.shape[1]
+
+    self.h = self.x2.shape[1]
+    self.w = self.x2.shape[2]
+    self.c = self.x2.shape[3]
+    
+    self.idx_s = np.arange(self.sample_size-self.seq_len)
+    self.batch_size = batch_size
+    self.stp_per_epoch = int(self.sample_size/self.batch_size)
+    
+    self.frames_per_annotation = frames_per_annotation
+    
+   
+  def generate(self):
+    
+    while True:
+      
+      for b in range(self.stp_per_epoch):
+
+        np.random.shuffle(self.idx_s)
+        rnd_idx = self.idx_s[:self.batch_size]
+
+        x1b = np.empty([self.batch_size,self.seq_len*self.frames_per_annotation,self.f])
+        x2b = np.empty([self.batch_size,self.seq_len,self.h,self.w,self.c])
+        yb = np.empty([self.batch_size])
+        
+        for i in range(len(rnd_idx)):
+          
+          ri = rnd_idx[i]
+          x1b[i,:,:] = self.x1[ri:ri+(self.seq_len*self.frames_per_annotation),:]
+          x2b[i,:,:,:,:] = self.x2[ri:ri+self.seq_len,:,:,:]
+          yb[i] = self.y[ri+self.seq_len-1]
+
+        yield [x1b, x2b], yb
+
+def multi_gen(audio_gen, video_gen):
+
+    while True:
+        audio_X, audio_y = audio_gen.next()
+        video_X, video_y = video_gen.next()
+        if not np.array_equal(audio_y, video_y):
+            raise Exception('Audio and video labels do not match!')
+        yield [audio_X, video_X], audio_y  #Yield both images and their mutual label

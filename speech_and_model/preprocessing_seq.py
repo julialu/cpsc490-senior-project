@@ -146,17 +146,19 @@ def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', ta
         name = datapoint.split('.')[0]
         sound_file = sound_folder + '/' + name +".wav"  #get correspective sound
         long_predictors, long_target = preprocess_datapoint(sound_file, annotation_file)  #compute features
-        cut_predictors, cut_target = segment_datapoint(long_predictors, long_target,   #slice feature maps
-                                                        SEQ_LENGTH, SEQ_OVERLAP)
+        # cut_predictors, cut_target = segment_datapoint(long_predictors, long_target,   #slice feature maps
+        #                                                 SEQ_LENGTH, SEQ_OVERLAP)
 
-        predictors.append(cut_predictors)
-        target.append(cut_target)
+        # predictors.append(cut_predictors)
+        # target.append(cut_target)
+        predictors.extend(long_predictors)
+        target.extend(long_target)
         perc_progress = (index * 100) / num_sounds
         index += 1
         print "processed files: " + str(index) + " over " + str(num_sounds) + "  |  progress: " + str(perc_progress) + "%"
 
-    predictors = np.concatenate(predictors, axis=0)  #reshape arrays
-    target = np.concatenate(target, axis=0)
+    # predictors = np.concatenate(predictors, axis=0)  #reshape arrays
+    # target = np.concatenate(target, axis=0)
     #scramble datapoints order
     # shuffled_predictors = []
     # shuffled_target = []
@@ -169,13 +171,14 @@ def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', ta
     # shuffled_predictors = np.array(shuffled_predictors)
     # shuffled_target = np.array(shuffled_target)
 
-    return predictors, target
+    return np.array(predictors), np.array(target)
 
 def build_matrices(output_predictors_matrix, output_target_matrix, sound_folder, annotation_folder):
     '''
     build matrices and save numpy files
     '''
     predictors, target = preprocess_dataset(sound_folder, annotation_folder, TARGET_SUBJECT, TARGET_STORY)
+
     np.save(output_predictors_matrix, predictors)
     np.save(output_target_matrix, target)
     print "Matrices saved succesfully"
