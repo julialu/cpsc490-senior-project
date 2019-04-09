@@ -102,9 +102,7 @@ def segment_datapoint(features, annotation, sequence_length, sequence_overlap):
     into smaller matrices of length "sequence_length"
     and overlapped by "sequence_overlap"
     '''
-    step = sequence_length*sequence_overlap  #segmentation overlap step
-    num_datapoints = int(len(annotation) / step)
-    pointer = np.arange(0,len(annotation), step, dtype='int')  #initail positions of segments
+    pointer = np.arange(0,len(annotation) - sequence_length + 1, 1, dtype='int')  #initail positions of segments
     predictors = []
     target = []
     #slice arrays and append datapoints to vectors
@@ -116,16 +114,11 @@ def segment_datapoint(features, annotation, sequence_length, sequence_overlap):
         #print start_annotation, stop_annotation, start_features, stop_features
         if stop_annotation <= len(annotation):
             temp_predictors = features[start_features:stop_features]
-            temp_target = annotation[start_annotation:stop_annotation]
+            temp_target = annotation[stop_annotation-1] # target is annotation at last feature
             predictors.append(temp_predictors)
             target.append(temp_target)
             #target.append(np.mean(temp_target))
-        else:  #last datapoint has a different overlap
-            temp_predictors = features[-int(sequence_length*frames_per_annotation):]
-            temp_target = annotation[-sequence_length:]
-            predictors.append(temp_predictors)
-            target.append(temp_target)
-            #target.append(np.mean(temp_target))
+
     predictors = np.array(predictors)
     target = np.array(target)
 
@@ -165,18 +158,18 @@ def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', ta
     predictors = np.concatenate(predictors, axis=0)  #reshape arrays
     target = np.concatenate(target, axis=0)
     #scramble datapoints order
-    shuffled_predictors = []
-    shuffled_target = []
-    num_datapoints = target.shape[0]
-    random_indices = range(num_datapoints)
-    np.random.shuffle(random_indices)
-    for i in random_indices:
-        shuffled_predictors.append(predictors[i])
-        shuffled_target.append(target[i])
-    shuffled_predictors = np.array(shuffled_predictors)
-    shuffled_target = np.array(shuffled_target)
+    # shuffled_predictors = []
+    # shuffled_target = []
+    # num_datapoints = target.shape[0]
+    # random_indices = range(num_datapoints)
+    # np.random.shuffle(random_indices)
+    # for i in random_indices:
+    #     shuffled_predictors.append(predictors[i])
+    #     shuffled_target.append(target[i])
+    # shuffled_predictors = np.array(shuffled_predictors)
+    # shuffled_target = np.array(shuffled_target)
 
-    return shuffled_predictors, shuffled_target
+    return predictors, target
 
 def build_matrices(output_predictors_matrix, output_target_matrix, sound_folder, annotation_folder):
     '''

@@ -134,7 +134,7 @@ def CCC(y_true, y_pred):
 
     '''
 
-    import keras.backend as K
+    import tensorflow.keras.backend as K
     # covariance between y_true and y_pred
     N = K.int_shape(y_pred)[-1]
     s_xy = 1.0 / (N - 1.0 + K.epsilon()) * K.sum((y_true - K.mean(y_true)) * (y_pred - K.mean(y_pred)))
