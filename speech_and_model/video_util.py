@@ -210,7 +210,7 @@ class light_generator():
       
       for b in range(self.stp_per_epoch):
 
-        # np.random.shuffle(self.idx_s)
+        np.random.shuffle(self.idx_s)
         rnd_idx = self.idx_s[:self.batch_size]
 
         
