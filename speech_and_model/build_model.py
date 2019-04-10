@@ -63,6 +63,25 @@ print speech_valid_x.shape
 print train_target.shape
 print validation_target.shape
 
+## load dataset for video and make generators 
+
+batch_size = 128 # (use for the generator for video)
+
+img_tr = np.load("fullbody_img_tr.pkl", mmap_mode='r')
+print "train image loaded with shape: " + img_tr.shape
+
+lbl_tr = np.load("fullbody_lbl_tr.pkl", mmap_mode='r')
+print "train labels loaded with shape:" +  lbl_tr.shape
+
+lw_gen_tr = light_generator(img_tr[:],lbl_tr[:],seq_len,batch_size)
+
+img_vl = pickle.load("fullbody_img_vl.pkl", mmap_mode='r')
+print "val image loaded with shape:" + img_vl.shape
+
+lbl_vl = pickle.load("fullbody_img_tr.pkl", mmap_mode='r')
+print "val labels loaded with shape:" + lbl_vl.shape
+
+lw_gen_vl = light_generator(img_vl,lbl_vl,seq_len,batch_size)
 
 #hyperparameters
 batch_size = 100
@@ -110,32 +129,12 @@ gru = Bidirectional(GRU(lstm1_depth, return_sequences=False))(speech_input)
 norm = BatchNormalization()(gru)
 speech_features = Dense(feature_vector_size, activation='linear')(norm)
 
-## load video data and make generators
-
-img_tr = pickle.load(open("fullbody_img_tr.pkl"))
-print ("train image loaded with shape:", img_tr.shape)
-
-lbl_tr = pickle.load(open("fullbody_lbl_tr.pkl"))
-print ("train labels loaded with shape:", lbl_tr.shape)
-
-lw_gen_tr = light_generator(img_tr[:],lbl_tr[:],seq_len,batch_size)
-
-img_vl = pickle.load(open("fullbody_img_vl.pkl"))
-print ("val image loaded with shape:", img_vl.shape)
-
-lbl_vl = pickle.load(open("fullbody_img_tr.pkl"))
-print ("val labels loaded with shape:", lbl_vl.shape)
-
-lw_gen_vl = light_generator(img_vl,lbl_vl,seq_len,batch_size)
-
 ## conv3d network for video model 
 
 seq_len = 16
 img_x = 48 
 img_y = 48
 ch_n = 1
-
-batch_size = 128 # (use for the generator)
 
 video_input = Input(shape=(SEQ_LENGTH, img_x, img_y, ch_n), name='video_input')
 
