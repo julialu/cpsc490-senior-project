@@ -2,3 +2,4 @@ dataset
 *.pyc
 matrices
 env
+conv_model_fullbody/tmp

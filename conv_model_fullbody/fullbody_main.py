@@ -8,8 +8,8 @@ import pickle
 
 # change to the directories that hold the images for the  
 # save_path = '/Users/julialu/cpsc490-senior-project/trained/conv_model_fullbody'
-img_path = '/Users/julialu/cpsc490-senior-project/data/Training/FullBody/Subject_{0}_Story_{1}/Subject_img/'
-lbl_path = '/Users/julialu/cpsc490-senior-project/data/Training/Annotations/Subject_{0}_Story_{1}.csv'
+img_path = '../dataset/Training/FullBody/Subject_{0}_Story_{1}/Subject_img/'
+lbl_path = '../dataset/Training/Annotations/Subject_{0}_Story_{1}.csv'
 
 seq_len = 16
 seq_len = 1

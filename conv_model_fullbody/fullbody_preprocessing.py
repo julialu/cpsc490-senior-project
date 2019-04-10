@@ -134,9 +134,9 @@ if __name__ == "__main__":
     size = 128
 
     #Path where the videos are
-    path = "/Users/julialu/cpsc490-senior-project/data/Training/Videos"
+    path = "../dataset/Training/Videos"
 
     #Path where the faces will be saved
-    savePath ="/Users/julialu/cpsc490-senior-project/data/Training/FullBody"
+    savePath ="../dataset/Training/FullBody"
 
     extractFullBodyFromVideo(path, savePath)

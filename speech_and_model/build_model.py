@@ -3,7 +3,7 @@
 
 import numpy as np
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, GRU, Dense, Dropout, Activation, Flatten, LSTM, TimeDistributed, Reshape, Bidirectional, BatchNormalization, Add, RepeatVector, Lambda, Multiply
+from tensorflow.keras.layers import Input, GRU, Dense, Dropout, Activation, Flatten, LSTM, TimeDistributed, Reshape, Bidirectional, BatchNormalization, Add, RepeatVector, Lambda, Multiply, Concatenate
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, History
 from tensorflow.keras import optimizers
 from tensorflow.keras import regularizers
@@ -67,21 +67,21 @@ print validation_target.shape
 
 batch_size = 128 # (use for the generator for video)
 
-img_tr = np.load("fullbody_img_tr.pkl", mmap_mode='r')
-print "train image loaded with shape: " + img_tr.shape
+video_train_x = np.load("fullbody_img_tr.pkl", mmap_mode='r')
+print "train image loaded with shape: " + video_train_x.shape
 
 lbl_tr = np.load("fullbody_lbl_tr.pkl", mmap_mode='r')
 print "train labels loaded with shape:" +  lbl_tr.shape
 
-lw_gen_tr = light_generator(img_tr[:],lbl_tr[:],seq_len,batch_size)
+# lw_gen_tr = light_generator(video_train_x[:],lbl_tr[:],seq_len,batch_size)
 
-img_vl = pickle.load("fullbody_img_vl.pkl", mmap_mode='r')
-print "val image loaded with shape:" + img_vl.shape
+video_valid_x = pickle.load("fullbody_img_vl.pkl", mmap_mode='r')
+print "val image loaded with shape:" + video_valid_x.shape
 
 lbl_vl = pickle.load("fullbody_img_tr.pkl", mmap_mode='r')
 print "val labels loaded with shape:" + lbl_vl.shape
 
-lw_gen_vl = light_generator(img_vl,lbl_vl,seq_len,batch_size)
+# lw_gen_vl = light_generator(video_valid_x,lbl_vl,seq_len,batch_size)
 
 #hyperparameters
 batch_size = 100
@@ -153,9 +153,11 @@ video_features = Dense(features_vector_size,activation='relu', name='video_featu
 
 # attention weights
 
-att_input = Flatten()(speech_input)
-att_dense1 = Dense(64, activation='linear')(att_input)
-att_dense2 = Dense(32, activation='linear')(att_dense1)
+flat_speech = Flatten()(speech_input)
+flat_video = Flatten()(video_input)
+att_input = Concatenate(flat_speech, flat_video)
+att_dense1 = Dense(1024, activation='linear')(att_input)
+att_dense2 = Dense(512, activation='linear')(att_dense1)
 att_weights = Dense(2, activation='softmax')(att_dense2)
 
 # this results in a [batch_size, feature_vector_size, # inputs] tensor
