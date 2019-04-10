@@ -7,6 +7,11 @@ from tensorflow.keras.layers import Input, GRU, Dense, Dropout, Activation, Flat
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, History
 from tensorflow.keras import optimizers
 from tensorflow.keras import regularizers
+
+from keras.layers import Conv2D, Conv3D, MaxPooling2D, MaxPooling3D, AveragePooling2D, Dense, Dropout, Flatten, LSTM, Reshape, TimeDistributed, Input, concatenate, BatchNormalization
+
+from video_util import *
+
 import utilities_func as uf
 import loadconfig
 import ConfigParser
@@ -105,13 +110,50 @@ gru = Bidirectional(GRU(lstm1_depth, return_sequences=False))(speech_input)
 norm = BatchNormalization()(gru)
 speech_features = Dense(feature_vector_size, activation='linear')(norm)
 
-# TO DO VIDEO MODEL
- #placeholders for testing
-video_input = Input(shape=(SEQ_LENGTH, 128, 128, 1))
-video_features = Dense(feature_vector_size, activation='linear')(norm)
+## load video data and make generators
+
+img_tr = pickle.load(open("fullbody_img_tr.pkl"))
+print ("train image loaded with shape:", img_tr.shape)
+
+lbl_tr = pickle.load(open("fullbody_lbl_tr.pkl"))
+print ("train labels loaded with shape:", lbl_tr.shape)
+
+lw_gen_tr = light_generator(img_tr[:],lbl_tr[:],seq_len,batch_size)
+
+img_vl = pickle.load(open("fullbody_img_vl.pkl"))
+print ("val image loaded with shape:", img_vl.shape)
+
+lbl_vl = pickle.load(open("fullbody_img_tr.pkl"))
+print ("val labels loaded with shape:", lbl_vl.shape)
+
+lw_gen_vl = light_generator(img_vl,lbl_vl,seq_len,batch_size)
+
+## conv3d network for video model 
+
+seq_len = 16
+img_x = 48 
+img_y = 48
+ch_n = 1
+
+batch_size = 128 # (use for the generator)
+
+video_input = Input(shape=(SEQ_LENGTH, img_x, img_y, ch_n), name='video_input')
+
+layer = Conv3D(32, kernel_size=(3, 3, 3), activation='relu', padding='same')(video_input)
+layer = Conv3D(32, kernel_size=(3, 3, 3), activation='relu', padding='same')(layer)
+layer = MaxPooling3D(pool_size=(3, 3, 3), padding='same')(layer)
+layer = BatchNormalization()(layer) 
+
+layer = Conv3D(64, kernel_size=(3, 3, 3), activation='relu', padding='same')(layer)
+layer = Conv3D(64, kernel_size=(3, 3, 3), activation='relu', padding='same')(layer)
+layer = MaxPooling3D(pool_size=(3, 3, 3), padding='same')(layer)
+layer = BatchNormalization()(layer) 
+
+layer = Flatten()(layer)
+video_features = Dense(features_vector_size,activation='relu', name='video_features')(layer)
 
 # attention weights
-# TODO concatenate inputs
+
 att_input = Flatten()(speech_input)
 att_dense1 = Dense(64, activation='linear')(att_input)
 att_dense2 = Dense(32, activation='linear')(att_dense1)
