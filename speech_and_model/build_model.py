@@ -8,7 +8,7 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, History
 from tensorflow.keras import optimizers
 from tensorflow.keras import regularizers
 
-from keras.layers import Conv2D, Conv3D, MaxPooling2D, MaxPooling3D, AveragePooling2D, Dense, Dropout, Flatten, LSTM, Reshape, TimeDistributed, Input, concatenate, BatchNormalization
+from tensorflow.keras.layers import Conv2D, Conv3D, MaxPooling2D, MaxPooling3D, AveragePooling2D, LSTM
 
 from video_util import *
 
@@ -67,18 +67,18 @@ print validation_target.shape
 
 batch_size = 128 # (use for the generator for video)
 
-video_train_x = np.load("fullbody_img_tr.pkl", mmap_mode='r')
-print "train image loaded with shape: " + video_train_x.shape
+# video_train_x = np.load("../matrices/fullbody_img_tr.pkl", mmap_mode='r')
+# print "train image loaded with shape: " + video_train_x.shape
 
-lbl_tr = np.load("fullbody_lbl_tr.pkl", mmap_mode='r')
+lbl_tr = np.load("../matrices/fullbody_lbl_tr.pkl", mmap_mode='r')
 print "train labels loaded with shape:" +  lbl_tr.shape
 
 # lw_gen_tr = light_generator(video_train_x[:],lbl_tr[:],seq_len,batch_size)
 
-video_valid_x = pickle.load("fullbody_img_vl.pkl", mmap_mode='r')
-print "val image loaded with shape:" + video_valid_x.shape
+# video_valid_x = np.load("../matrices/fullbody_img_vl.pkl", mmap_mode='r')
+# print "val image loaded with shape:" + video_valid_x.shape
 
-lbl_vl = pickle.load("fullbody_img_tr.pkl", mmap_mode='r')
+lbl_vl = np.load("../matrices/fullbody_img_tr.pkl", mmap_mode='r')
 print "val labels loaded with shape:" + lbl_vl.shape
 
 # lw_gen_vl = light_generator(video_valid_x,lbl_vl,seq_len,batch_size)
