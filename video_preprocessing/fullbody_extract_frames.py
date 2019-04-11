@@ -18,6 +18,12 @@ from numpy import reshape
 from matplotlib import pyplot as plt
 
 import re
+
+'''
+Turns videos into frames in png format. Crops pngs to full body 
+of subject/actor
+'''
+
 def sorted_nicely( l ):
     """ Sort the given iterable in the way that humans expect."""
     convert = lambda text: int(text) if text.isdigit() else text
@@ -132,14 +138,6 @@ def define_frames(tag, size = 620, x_shift = 0, y_shift = 0):
 if __name__ == "__main__":
 
     size = 128
-
-    # #Path where the videos are
-    # path = "../dataset/Training/Videos"
-
-    # #Path where the faces will be saved
-    # savePath ="../dataset/Training/FullBody"
-
-    # extractFullBodyFromVideo(path, savePath)
 
     #Path where the videos are
     path = "../dataset/Validation/Videos"
