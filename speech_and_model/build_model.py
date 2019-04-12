@@ -71,17 +71,24 @@ batch_size = 128 # (use for the generator for video)
 # print "train image loaded with shape: " + video_train_x.shape
 
 lbl_tr = np.load("../matrices/fullbody_lbl_tr.pkl", mmap_mode='r')
-print "train labels loaded with shape:" +  lbl_tr.shape
+print "train labels loaded with shape:" +  str(lbl_tr.shape)
 
 # lw_gen_tr = light_generator(video_train_x[:],lbl_tr[:],seq_len,batch_size)
 
 # video_valid_x = np.load("../matrices/fullbody_img_vl.pkl", mmap_mode='r')
 # print "val image loaded with shape:" + video_valid_x.shape
 
-lbl_vl = np.load("../matrices/fullbody_img_tr.pkl", mmap_mode='r')
-print "val labels loaded with shape:" + lbl_vl.shape
+lbl_vl = np.load("../matrices/fullbody_lbl_vl.pkl", mmap_mode='r')
+print "val labels loaded with shape:" + str(lbl_vl.shape)
 
 # lw_gen_vl = light_generator(video_valid_x,lbl_vl,seq_len,batch_size)
+for i in range(lbl_tr.shape[0]):
+	if lbl_tr[i] != train_target[i]:
+		print i, 'Audio', train_target[i], 'Video', lbl_tr[i]
+
+for i in range(lbl_vl.shape[0]):
+	if lbl_vl[i] != validation_target[i]:
+		print 'Audio', validation_target[i], 'Video', lbl_vl[i]
 
 #hyperparameters
 batch_size = 100
@@ -94,9 +101,9 @@ regularization_lambda = 0.01
 
 # determined in preprocessing, NOT hyperparameter
 frames_per_annotation = 4
-video_train_x = np.zeros((train_target.shape[0], 128, 128, 1))
+video_train_x = np.zeros((train_target.shape[0], 48, 48, 1))
 multi_input_gen_train = uf.multi_input_generator(speech_train_x, video_train_x, train_target, SEQ_LENGTH, batch_size, frames_per_annotation)
-video_valid_x = np.zeros((validation_target.shape[0], 128, 128, 1))
+video_valid_x = np.zeros((validation_target.shape[0], 48, 48, 1))
 multi_input_gen_val = uf.multi_input_generator(speech_valid_x, video_valid_x, validation_target, SEQ_LENGTH, batch_size, frames_per_annotation)
 
 # count = 0
@@ -149,13 +156,13 @@ layer = MaxPooling3D(pool_size=(3, 3, 3), padding='same')(layer)
 layer = BatchNormalization()(layer) 
 
 layer = Flatten()(layer)
-video_features = Dense(features_vector_size,activation='relu', name='video_features')(layer)
+video_features = Dense(feature_vector_size,activation='relu', name='video_features')(layer)
 
 # attention weights
 
 flat_speech = Flatten()(speech_input)
 flat_video = Flatten()(video_input)
-att_input = Concatenate(flat_speech, flat_video)
+att_input = Concatenate()([flat_speech, flat_video])
 att_dense1 = Dense(1024, activation='linear')(att_input)
 att_dense2 = Dense(512, activation='linear')(att_dense1)
 att_weights = Dense(2, activation='softmax')(att_dense2)
@@ -192,8 +199,7 @@ history = valence_model.fit_generator(
 	validation_data=multi_input_gen_val.generate(),
 	validation_steps=multi_input_gen_val.stp_per_epoch,
 	callbacks=callbacks_list,
-	verbose=True,
-	shuffle=True)
+	verbose=True)
 
 print "Train loss = " + str(min(history.history['loss']))
 print "Validation loss = " + str(min(history.history['val_loss']))

@@ -125,7 +125,7 @@ def segment_datapoint(features, annotation, sequence_length, sequence_overlap):
     return predictors, target
 
 
-def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', target_story='all'):
+def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', target_story='all', isValidation=False):
     '''
     build dataset numpy matrices:
     -predictors: contatining audio features
@@ -135,27 +135,32 @@ def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', ta
     '''
     predictors = []
     target = []
-    annotations = os.listdir(annotation_folder)
-    filtered_list = filter_items(annotations, target_subject, target_story)
-    num_sounds = len(filtered_list)
+    fileNameFormat = 'Subject_{0}_Story_{1}'
+    sbj_n_s = range(1,11)
+    str_n_s = [2,4,5,8]
+    if isValidation:
+        str_n_s = [1]
+    # filtered_list = filter_items(annotations, target_subject, target_story)
+    num_sounds = len(str_n_s) * len(sbj_n_s)
     #process all files in folders
     index = 0
-    for datapoint in filtered_list:
-        print datapoint
-        annotation_file = annotation_folder + '/' + datapoint
-        name = datapoint.split('.')[0]
-        sound_file = sound_folder + '/' + name +".wav"  #get correspective sound
-        long_predictors, long_target = preprocess_datapoint(sound_file, annotation_file)  #compute features
-        # cut_predictors, cut_target = segment_datapoint(long_predictors, long_target,   #slice feature maps
-        #                                                 SEQ_LENGTH, SEQ_OVERLAP)
+    for sbj_n in sbj_n_s:
+        for str_n in str_n_s:
+            name = fileNameFormat.format(sbj_n, str_n)
+            print name
+            annotation_file = annotation_folder + '/' + name + '.csv'
+            sound_file = sound_folder + '/' + name + ".wav"  #get correspective sound
+            long_predictors, long_target = preprocess_datapoint(sound_file, annotation_file)  #compute features
+            # cut_predictors, cut_target = segment_datapoint(long_predictors, long_target,   #slice feature maps
+            #                                                 SEQ_LENGTH, SEQ_OVERLAP)
 
-        # predictors.append(cut_predictors)
-        # target.append(cut_target)
-        predictors.extend(long_predictors)
-        target.extend(long_target)
-        perc_progress = (index * 100) / num_sounds
-        index += 1
-        print "processed files: " + str(index) + " over " + str(num_sounds) + "  |  progress: " + str(perc_progress) + "%"
+            # predictors.append(cut_predictors)
+            # target.append(cut_target)
+            predictors.extend(long_predictors)
+            target.extend(long_target)
+            perc_progress = (index * 100) / num_sounds
+            index += 1
+            print "processed files: " + str(index) + " over " + str(num_sounds) + "  |  progress: " + str(perc_progress) + "%"
 
     # predictors = np.concatenate(predictors, axis=0)  #reshape arrays
     # target = np.concatenate(target, axis=0)
@@ -173,11 +178,11 @@ def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', ta
 
     return np.array(predictors), np.array(target)
 
-def build_matrices(output_predictors_matrix, output_target_matrix, sound_folder, annotation_folder):
+def build_matrices(output_predictors_matrix, output_target_matrix, sound_folder, annotation_folder, isValidation):
     '''
     build matrices and save numpy files
     '''
-    predictors, target = preprocess_dataset(sound_folder, annotation_folder, TARGET_SUBJECT, TARGET_STORY)
+    predictors, target = preprocess_dataset(sound_folder, annotation_folder, TARGET_SUBJECT, TARGET_STORY, isValidation)
 
     np.save(output_predictors_matrix, predictors)
     np.save(output_target_matrix, target)
@@ -190,5 +195,5 @@ if __name__ == '__main__':
     '''
     build training and validation matrices
     '''
-    build_matrices(OUTPUT_PREDICTORS_MATRIX_T, OUTPUT_TARGET_MATRIX_T, SOUND_FOLDER_T, ANNOTATION_FOLDER_T)
-    build_matrices(OUTPUT_PREDICTORS_MATRIX_V, OUTPUT_TARGET_MATRIX_V, SOUND_FOLDER_V, ANNOTATION_FOLDER_V)
+    build_matrices(OUTPUT_PREDICTORS_MATRIX_T, OUTPUT_TARGET_MATRIX_T, SOUND_FOLDER_T, ANNOTATION_FOLDER_T, False)
+    build_matrices(OUTPUT_PREDICTORS_MATRIX_V, OUTPUT_TARGET_MATRIX_V, SOUND_FOLDER_V, ANNOTATION_FOLDER_V, True)
