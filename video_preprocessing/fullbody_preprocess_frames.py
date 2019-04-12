@@ -25,7 +25,7 @@ ch_n = 1
 sbj_n_s = range(1,11)
 str_n_s = [2,4,5,8]
 
-lbl_tr = np.concatenate([np.loadtxt(lbl_path.format(sbj_n,str_n),skiprows=1) for str_n in str_n_s for sbj_n in sbj_n_s])
+lbl_tr = np.concatenate([np.loadtxt(lbl_path.format(sbj_n,str_n),skiprows=1) for sbj_n in sbj_n_s for str_n in str_n_s])
 pickle.dump(lbl_tr, open("../matrices/fullbody_lbl_tr.pkl", "w"))
 print('train labels loaded with shape: ',lbl_tr.shape) 
 
@@ -42,7 +42,7 @@ lbl_path = '../dataset/Validation/Annotations/Subject_{0}_Story_{1}.csv'
 sbj_n_s = range(1,11)
 str_n_s = [1] 
 
-lbl_vl = np.concatenate([np.loadtxt(lbl_path.format(sbj_n,str_n),skiprows=1) for str_n in str_n_s for sbj_n in sbj_n_s])
+lbl_vl = np.concatenate([np.loadtxt(lbl_path.format(sbj_n,str_n),skiprows=1) for sbj_n in sbj_n_s for str_n in str_n_s])
 pickle.dump(lbl_vl, open("../matrices/fullbody_lbl_vl.pkl", "w"))
 print('val images loaded with shape: ',lbl_vl.shape)
 

@@ -38,9 +38,9 @@ def create_img_dataset(img_path,n,img_x,img_y,ch_n,str_n_s,sbj_n_s):
     idx_srt = 0
 
     # loops over all pngs
-    for str_n in str_n_s:
+    for sbj_n in sbj_n_s:
 
-        for sbj_n in sbj_n_s:
+        for str_n in str_n_s:
 
             img_s = create_img_vec(img_path,img_x,img_y,sbj_n,str_n)
             idx_end = idx_srt+img_s.shape[0]
@@ -54,9 +54,9 @@ def make_id_vector(str_n_s,sbj_n_s,lbl_path):
     
     id_s = []
 
-    for str_n in str_n_s:
+    for sbj_n in sbj_n_s:
 
-        for sbj_n in sbj_n_s:
+        for str_n in str_n_s:
             print("Subject number and Story number:", sbj_n,str_n)
             lbl = np.loadtxt(lbl_path.format(sbj_n,str_n),skiprows=1)
 
