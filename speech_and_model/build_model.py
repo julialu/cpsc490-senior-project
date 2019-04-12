@@ -67,28 +67,27 @@ print validation_target.shape
 
 batch_size = 128 # (use for the generator for video)
 
-# video_train_x = np.load("../matrices/fullbody_img_tr.pkl", mmap_mode='r')
-# print "train image loaded with shape: " + video_train_x.shape
+video_train_x = np.load("../matrices/fullbody_img_tr.npy", mmap_mode='r')
+print "train image loaded with shape: " + str(video_train_x.shape)
 
-lbl_tr = np.load("../matrices/fullbody_lbl_tr.pkl", mmap_mode='r')
-print "train labels loaded with shape:" +  str(lbl_tr.shape)
+lbl_tr = np.load("../matrices/fullbody_lbl_tr.npy", mmap_mode='r')
+print "train labels loaded with shape:" + str(lbl_tr.shape)
 
 # lw_gen_tr = light_generator(video_train_x[:],lbl_tr[:],seq_len,batch_size)
 
-# video_valid_x = np.load("../matrices/fullbody_img_vl.pkl", mmap_mode='r')
-# print "val image loaded with shape:" + video_valid_x.shape
+video_valid_x = np.load("../matrices/fullbody_img_vl.npy", mmap_mode='r')
+print "val image loaded with shape:" + str(video_valid_x.shape)
 
-lbl_vl = np.load("../matrices/fullbody_lbl_vl.pkl", mmap_mode='r')
+lbl_vl = np.load("../matrices/fullbody_lbl_vl.npy", mmap_mode='r')
 print "val labels loaded with shape:" + str(lbl_vl.shape)
 
-# lw_gen_vl = light_generator(video_valid_x,lbl_vl,seq_len,batch_size)
-for i in range(lbl_tr.shape[0]):
-	if lbl_tr[i] != train_target[i]:
-		print i, 'Audio', train_target[i], 'Video', lbl_tr[i]
+# for i in range(lbl_tr.shape[0]):
+# 	if lbl_tr[i] != train_target[i]:
+# 		print i, 'Audio', train_target[i], 'Video', lbl_tr[i]
 
-for i in range(lbl_vl.shape[0]):
-	if lbl_vl[i] != validation_target[i]:
-		print 'Audio', validation_target[i], 'Video', lbl_vl[i]
+# for i in range(lbl_vl.shape[0]):
+# 	if lbl_vl[i] != validation_target[i]:
+# 		print 'Audio', validation_target[i], 'Video', lbl_vl[i]
 
 #hyperparameters
 batch_size = 100
