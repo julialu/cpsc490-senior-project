@@ -63,8 +63,7 @@ print speech_valid_x.shape
 print train_target.shape
 print validation_target.shape
 
-## load dataset for video and make generators 
-
+## load dataset for video
 batch_size = 128 # (use for the generator for video)
 
 video_train_x = np.load("../matrices/fullbody_img_tr.npy", mmap_mode='r')
@@ -72,8 +71,6 @@ print "train image loaded with shape: " + str(video_train_x.shape)
 
 lbl_tr = np.load("../matrices/fullbody_lbl_tr.npy", mmap_mode='r')
 print "train labels loaded with shape:" + str(lbl_tr.shape)
-
-# lw_gen_tr = light_generator(video_train_x[:],lbl_tr[:],seq_len,batch_size)
 
 video_valid_x = np.load("../matrices/fullbody_img_vl.npy", mmap_mode='r')
 print "val image loaded with shape:" + str(video_valid_x.shape)
@@ -96,20 +93,14 @@ lstm1_depth = 250
 feature_vector_size = 256
 drop_prob = 0.3
 dense_size = 100
-regularization_lambda = 0.01
+# regularization_lambda = 0.01
 
 # determined in preprocessing, NOT hyperparameter
 frames_per_annotation = 4
-video_train_x = np.zeros((train_target.shape[0], 48, 48, 1))
 multi_input_gen_train = uf.multi_input_generator(speech_train_x, video_train_x, train_target, SEQ_LENGTH, batch_size, frames_per_annotation)
-video_valid_x = np.zeros((validation_target.shape[0], 48, 48, 1))
 multi_input_gen_val = uf.multi_input_generator(speech_valid_x, video_valid_x, validation_target, SEQ_LENGTH, batch_size, frames_per_annotation)
 
-# count = 0
-# for [x1b, x2b], y in multi_input_gen_train.generate():
-# 	print x1b.shape, x2b.shape, y.shape
-
-reg = regularizers.l2(regularization_lambda)
+# reg = regularizers.l2(regularization_lambda)
 sgd = optimizers.SGD(lr=0.001, decay=0.003, momentum=0.5)
 opt = optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
 
