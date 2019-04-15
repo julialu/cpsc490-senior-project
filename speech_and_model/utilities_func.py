@@ -2,6 +2,7 @@ import numpy as np
 import math, copy
 import os
 import pandas
+import tensorflow.keras.backend as K
 from scipy.io.wavfile import read, write
 from scipy.fftpack import fft
 from scipy.signal import butter, filtfilt
@@ -133,8 +134,6 @@ def CCC(y_true, y_pred):
     Accepting tensors as input
 
     '''
-
-    import tensorflow.keras.backend as K
     # covariance between y_true and y_pred
     N = K.int_shape(y_pred)[-1]
     s_xy = 1.0 / (N - 1.0 + K.epsilon()) * K.sum((y_true - K.mean(y_true)) * (y_pred - K.mean(y_pred)))
@@ -150,6 +149,23 @@ def CCC(y_true, y_pred):
 
     return ccc
 
+def ccc_error(y_true, y_pred):
+    true_mean = K.mean(y_true)
+    true_variance = K.var(y_true)
+    pred_mean = K.mean(y_pred)
+    pred_variance = K.var(y_pred)
+
+    x = y_true - true_mean
+    y = y_pred - pred_mean
+    rho = K.sum(x * y) / K.sqrt(K.sum(x**2) * K.sum(y**2))
+    
+    std_predictions = K.std(y_pred)
+    std_gt = K.std(y_true)
+
+    ccc = 2 * rho * std_gt * std_predictions / (
+       std_predictions ** 2 + std_gt ** 2 +
+       (pred_mean - true_mean) ** 2)
+    return 1-ccc
 
 def find_mean_std(input_folder):
     annotations = os.listdir(input_folder)
@@ -233,11 +249,43 @@ class multi_input_generator():
 
         yield [x1b, x2b], yb
 
-def multi_gen(audio_gen, video_gen):
-
+class audio_generator():
+  
+  # x1 is audio, x2 is video
+  def __init__(self,x,y,seq_len,batch_size,frames_per_annotation):
+    
+    self.x = x
+    self.y = y
+    
+    self.seq_len = seq_len
+    self.sample_size = self.y.shape[0]
+    
+    self.f = self.x.shape[1]
+    
+    self.idx_s = np.arange(self.sample_size-self.seq_len)
+    self.batch_size = batch_size
+    self.stp_per_epoch = int(self.sample_size/self.batch_size)
+    
+    self.frames_per_annotation = frames_per_annotation
+    
+   
+  def generate(self):
+    
     while True:
-        audio_X, audio_y = audio_gen.next()
-        video_X, video_y = video_gen.next()
-        if not np.array_equal(audio_y, video_y):
-            raise Exception('Audio and video labels do not match!')
-        yield [audio_X, video_X], audio_y  #Yield both images and their mutual label
+      
+      for b in range(self.stp_per_epoch):
+
+        # np.random.shuffle(self.idx_s)
+        rnd_idx = self.idx_s[:self.batch_size]
+
+        xb = np.empty([self.batch_size,self.seq_len*self.frames_per_annotation,self.f])
+
+        yb = np.empty([self.batch_size])
+        
+        for i in range(len(rnd_idx)):
+          
+            ri = rnd_idx[i]
+            xb[i,:,:] = self.x[ri:ri+(self.seq_len*self.frames_per_annotation),:]
+            yb[i] = self.y[ri+self.seq_len-1]
+
+        yield xb, yb
