@@ -2,8 +2,8 @@
 import numpy as np
 
 import tensorflow as tf
-import keras.backend as K
-import keras.callbacks as cb
+import tensorflow.keras.backend as K
+import tensorflow.keras.callbacks as cb
 
 
 PATIENCE=3
