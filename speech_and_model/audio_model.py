@@ -102,11 +102,11 @@ speech_input = Input(shape=(time_dim, features_dim))
 
 gru = Bidirectional(GRU(lstm1_depth, return_sequences=False))(speech_input)
 norm = BatchNormalization()(gru)
-speech_features = Dense(feature_vector_size, activation='linear')(norm)
+speech_features = Dense(feature_vector_size, activation='relu')(norm)
 
 drop = Dropout(drop_prob)(speech_features)
-hidden1 = Dense(128, activation='linear')(drop)
-hidden2 = Dense(64, activation='linear')(hidden1)
+hidden1 = Dense(128, activation='relu')(drop)
+hidden2 = Dense(64, activation='relu')(hidden1)
 out = Dense(1, activation='linear')(hidden2)
 
 #model creation

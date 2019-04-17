@@ -92,7 +92,6 @@ num_epochs = 200
 lstm1_depth = 250
 feature_vector_size = 256
 drop_prob = 0.3
-dense_size = 100
 # regularization_lambda = 0.01
 
 # determined in preprocessing, NOT hyperparameter
@@ -124,7 +123,7 @@ speech_input = Input(shape=(time_dim, features_dim))
 
 gru = Bidirectional(GRU(lstm1_depth, return_sequences=False))(speech_input)
 norm = BatchNormalization()(gru)
-speech_features = Dense(feature_vector_size, activation='linear')(norm)
+speech_features = Dense(feature_vector_size, activation='relu')(norm)
 
 ## conv3d network for video model 
 
@@ -153,8 +152,8 @@ video_features = Dense(feature_vector_size,activation='relu', name='video_featur
 flat_speech = Flatten()(speech_input)
 flat_video = Flatten()(video_input)
 att_input = Concatenate()([flat_speech, flat_video])
-att_dense1 = Dense(1024, activation='linear')(att_input)
-att_dense2 = Dense(512, activation='linear')(att_dense1)
+att_dense1 = Dense(1024, activation='relu')(att_input)
+att_dense2 = Dense(512, activation='relu')(att_dense1)
 att_weights = Dense(2, activation='softmax')(att_dense2)
 
 # this results in a [batch_size, feature_vector_size, # inputs] tensor
@@ -169,14 +168,14 @@ video_scaled = Multiply()([w_2, video_features])
 fused_features = Add()([speech_scaled, video_scaled])
 
 drop = Dropout(drop_prob)(fused_features)
-hidden1 = Dense(128, activation='linear')(drop)
-hidden2 = Dense(64, activation='linear')(hidden1)
+hidden1 = Dense(128, activation='relu')(drop)
+hidden2 = Dense(64, activation='relu')(hidden1)
 out = Dense(1, activation='linear')(hidden2)
 
 #model creation
 valence_model = Model(inputs=[speech_input, video_input], outputs=out)
 #valence_model.compile(loss=batch_CCC, optimizer=opt)
-valence_model.compile(loss=uf.ccc_error, optimizer=sgd)
+valence_model.compile(loss=uf.ccc_error, optimizer=opt)
 
 print valence_model.summary()
 
@@ -184,10 +183,10 @@ print valence_model.summary()
 print 'Training...'
 history = valence_model.fit_generator(
 	multi_input_gen_train.generate(), 
-	steps_per_epoch=3,
+	steps_per_epoch=multi_input_gen_train.stp_per_epoch,
 	epochs = num_epochs, 
 	validation_data=multi_input_gen_val.generate(),
-	validation_steps=2,
+	validation_steps=multi_input_gen_val.stp_per_epoch,
 	callbacks=callbacks_list,
 	verbose=True)
 
