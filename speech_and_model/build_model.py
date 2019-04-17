@@ -86,7 +86,7 @@ print "val labels loaded with shape:" + str(lbl_vl.shape)
 # 		print 'Audio', validation_target[i], 'Video', lbl_vl[i]
 
 #hyperparameters
-batch_size = 100
+batch_size = 128
 num_epochs = 200
 lstm1_depth = 250
 feature_vector_size = 256
