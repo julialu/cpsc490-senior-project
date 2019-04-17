@@ -64,7 +64,6 @@ print train_target.shape
 print validation_target.shape
 
 ## load dataset for video
-batch_size = 128 # (use for the generator for video)
 
 video_train_x = np.load("../matrices/fullbody_img_tr.npy", mmap_mode='r')
 print "train image loaded with shape: " + str(video_train_x.shape)

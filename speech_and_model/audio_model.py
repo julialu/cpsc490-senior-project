@@ -67,9 +67,8 @@ print validation_target.shape
 batch_size = 100
 num_epochs = 200
 lstm1_depth = 250
-feature_vector_size = 128
+feature_vector_size = 256
 drop_prob = 0.3
-dense_size = 100
 # regularization_lambda = 0.01
 
 # determined in preprocessing, NOT hyperparameter
