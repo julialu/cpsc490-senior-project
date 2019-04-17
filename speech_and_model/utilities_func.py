@@ -157,7 +157,7 @@ def ccc_error(y_true, y_pred):
 
     x = y_true - true_mean
     y = y_pred - pred_mean
-    rho = K.sum(x * y) / K.sqrt(K.sum(x**2) * K.sum(y**2))
+    rho = K.sum(x * y) / (K.sqrt(K.sum(x**2) * K.sum(y**2)) + K.epsilon())
     
     std_predictions = K.std(y_pred)
     std_gt = K.std(y_true)
