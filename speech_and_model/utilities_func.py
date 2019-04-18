@@ -6,6 +6,7 @@ import tensorflow.keras.backend as K
 from scipy.io.wavfile import read, write
 from scipy.fftpack import fft
 from scipy.signal import butter, filtfilt
+from math import ceil
 
 tol = 1e-14    # threshold used to compute phase
 
@@ -222,7 +223,7 @@ class multi_input_generator():
     
     self.idx_s = np.arange(self.sample_size-self.seq_len)
     self.batch_size = batch_size
-    self.stp_per_epoch = int(self.sample_size/self.batch_size)
+    self.stp_per_epoch = int(ceil(float(self.sample_size - self.seq_len)/self.batch_size))
     
     self.frames_per_annotation = frames_per_annotation
     
@@ -249,6 +250,37 @@ class multi_input_generator():
 
         yield [x1b, x2b], yb
 
+  def generate_no_shuffle(self):
+    while True:
+      
+      for b in range(self.stp_per_epoch):
+        start = b * self.batch_size
+        x1Start = self.frames_per_annotation*start
+
+        # cut needed slices so we only access disk once
+        x1Slice = self.x1[x1Start:x1Start+(self.seq_len+self.batch_size)*self.frames_per_annotation, :]
+        x2Slice = self.x2[start:start+self.seq_len+self.batch_size, :, :, :]
+        ySlice = self.y[start:start+self.seq_len+self.batch_size]
+
+        x1b = []
+        x2b = []
+        yb = []
+
+        for i in range(self.batch_size):
+          x1_i = self.frames_per_annotation * i
+          # x1b[i,:,:] = x1Slice[x1_i:x1_i+(self.seq_len*self.frames_per_annotation),:]
+          # x2b[i,:,:,:,:] = x2Slice[i:i+self.seq_len,:,:,:]
+          # yb[i] = self.ySlice[i+self.seq_len-1]
+
+          if i + self.seq_len > x2Slice.shape[0]:
+            break
+
+          x1b.append(x1Slice[x1_i:x1_i+(self.seq_len*self.frames_per_annotation),:])
+          x2b.append(x2Slice[i:i+self.seq_len,:,:,:])
+          yb.append(ySlice[i+self.seq_len-1])
+
+        yield [np.array(x1b), np.array(x2b)], np.array(yb)
+
 class audio_generator():
   
   # x1 is audio, x2 is video
@@ -264,7 +296,7 @@ class audio_generator():
     
     self.idx_s = np.arange(self.sample_size-self.seq_len)
     self.batch_size = batch_size
-    self.stp_per_epoch = int(self.sample_size/self.batch_size)
+    self.stp_per_epoch = int(ceil(float(self.sample_size - self.seq_len)/self.batch_size))
     
     self.frames_per_annotation = frames_per_annotation
     
@@ -289,3 +321,27 @@ class audio_generator():
             yb[i] = self.y[ri+self.seq_len-1]
 
         yield xb, yb
+
+  def generate_no_shuffle(self):
+    while True:
+      
+      for b in range(self.stp_per_epoch):
+        start = b * self.batch_size
+        xStart = self.frames_per_annotation*start
+
+        # cut needed slices so we only access disk once
+        xSlice = self.x[xStart:xStart+(self.seq_len+self.batch_size)*self.frames_per_annotation, :]
+
+        ySlice = self.y[start:start+self.seq_len+self.batch_size]
+
+        xb = []
+        yb = []
+
+        for i in range(self.batch_size):
+          x_i = self.frames_per_annotation * i
+          if i + self.seq_len > ySlice.shape[0]:
+            break
+          xb.append(xSlice[x_i:x_i+(self.seq_len*self.frames_per_annotation),:])
+          yb.append(ySlice[i+self.seq_len-1])
+
+        yield np.array(xb), np.array(yb)
