@@ -36,23 +36,32 @@ print "Validation predictors: " + SPEECH_VALID_PRED
 print "Validation target: " + VALIDATION_TARGET
 
 #load datasets
-speech_train_x = np.load('../matrices/speech_train_predictors.npy', mmap_mode='r')
-train_target = np.load('../matrices/train_target.npy', mmap_mode='r')
-speech_valid_x = np.load('../matrices/speech_valid_predictors.npy', mmap_mode='r')
-validation_target = np.load('../matrices/validation_target.npy', mmap_mode='r')
+speech_train_x = np.load(SPEECH_TRAIN_PRED, mmap_mode='r')
+train_target = np.load(SPEECH_TRAIN_TARGET, mmap_mode='r')
+speech_valid_x = np.load(SPEECH_VALID_PRED, mmap_mode='r')
+validation_target = np.load(VALIDATION_TARGET, mmap_mode='r')
+
+# #rescale datasets to mean 0 and std 1 (validation with respect
+# #to training mean and std)
+# tr_mean = np.mean(speech_train_x)
+# tr_std = np.std(speech_train_x)
+# v_mean = np.mean(speech_valid_x)
+# v_std = np.std(speech_valid_x)
+# speech_train_x = np.subtract(speech_train_x, tr_mean)
+# speech_train_x = np.divide(speech_train_x, tr_std)
+# speech_valid_x = np.subtract(speech_valid_x, tr_mean)
+# speech_valid_x = np.divide(speech_valid_x, tr_std)
+
+# #normalize target between 0 and 1
+# train_target = np.multiply(train_target, 0.5)
+# train_target = np.add(train_target, 0.5)
+# validation_target = np.multiply(validation_target, 0.5)
+# validation_target = np.add(validation_target, 0.5)
 
 print speech_train_x.shape
 print speech_valid_x.shape
 print train_target.shape
 print validation_target.shape
-
-# for i in range(lbl_tr.shape[0]):
-# 	if lbl_tr[i] != train_target[i]:
-# 		print i, 'Audio', train_target[i], 'Video', lbl_tr[i]
-
-# for i in range(lbl_vl.shape[0]):
-# 	if lbl_vl[i] != validation_target[i]:
-# 		print 'Audio', validation_target[i], 'Video', lbl_vl[i]
 
 #hyperparameters
 batch_size = 128
@@ -102,17 +111,17 @@ out = Dense(1, activation='linear')(hidden2)
 #model creation
 valence_model = Model(inputs=[speech_input], outputs=out)
 #valence_model.compile(loss=batch_CCC, optimizer=opt)
-valence_model.compile(loss='mse', optimizer=opt)
+valence_model.compile(loss=uf.ccc_error, optimizer=opt)
 
 print valence_model.summary()
 
 #model training
 print 'Training...'
 history = valence_model.fit_generator(
-	audio_gen_train.generate_no_shuffle(), 
+	audio_gen_train.generate(), 
 	steps_per_epoch=audio_gen_train.stp_per_epoch,
 	epochs = num_epochs, 
-	validation_data=audio_gen_val.generate_no_shuffle(),
+	validation_data=audio_gen_val.generate(),
 	validation_steps=audio_gen_val.stp_per_epoch,
 	callbacks=callbacks_list,
 	verbose=True)

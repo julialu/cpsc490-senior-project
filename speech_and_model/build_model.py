@@ -36,10 +36,27 @@ print "Validation predictors: " + SPEECH_VALID_PRED
 print "Validation target: " + VALIDATION_TARGET
 
 #load datasets
-speech_train_x = np.load('../matrices/speech_train_predictors.npy', mmap_mode='r')
-train_target = np.load('../matrices/train_target.npy', mmap_mode='r')
-speech_valid_x = np.load('../matrices/speech_valid_predictors.npy', mmap_mode='r')
-validation_target = np.load('../matrices/validation_target.npy', mmap_mode='r')
+speech_train_x = np.load(SPEECH_TRAIN_PRED, mmap_mode='r')
+train_target = np.load(SPEECH_TRAIN_TARGET, mmap_mode='r')
+speech_valid_x = np.load(SPEECH_VALID_PRED, mmap_mode='r')
+validation_target = np.load(VALIDATION_TARGET, mmap_mode='r')
+
+# #rescale datasets to mean 0 and std 1 (validation with respect
+# #to training mean and std)
+# tr_mean = np.mean(speech_train_x)
+# tr_std = np.std(speech_train_x)
+# v_mean = np.mean(speech_valid_x)
+# v_std = np.std(speech_valid_x)
+# speech_train_x = np.subtract(speech_train_x, tr_mean)
+# speech_train_x = np.divide(speech_train_x, tr_std)
+# speech_valid_x = np.subtract(speech_valid_x, tr_mean)
+# speech_valid_x = np.divide(speech_valid_x, tr_std)
+
+# #normalize target between 0 and 1
+# train_target = np.multiply(train_target, 0.5)
+# train_target = np.add(train_target, 0.5)
+# validation_target = np.multiply(validation_target, 0.5)
+# validation_target = np.add(validation_target, 0.5)
 
 print speech_train_x.shape
 print speech_valid_x.shape
@@ -48,11 +65,17 @@ print validation_target.shape
 
 ## load dataset for video
 
-video_train_x = np.load("../matrices/video_train_predictors.npy", mmap_mode='r')
+video_train_x = np.load("../matrices/fullbody_img_tr.npy", mmap_mode='r')
 print "train image loaded with shape: " + str(video_train_x.shape)
 
-video_valid_x = np.load("../matrices/video_valid_predictors.npy", mmap_mode='r')
+lbl_tr = np.load("../matrices/fullbody_lbl_tr.npy", mmap_mode='r')
+print "train labels loaded with shape:" + str(lbl_tr.shape)
+
+video_valid_x = np.load("../matrices/fullbody_img_vl.npy", mmap_mode='r')
 print "val image loaded with shape:" + str(video_valid_x.shape)
+
+lbl_vl = np.load("../matrices/fullbody_lbl_vl.npy", mmap_mode='r')
+print "val labels loaded with shape:" + str(lbl_vl.shape)
 
 # for i in range(lbl_tr.shape[0]):
 # 	if lbl_tr[i] != train_target[i]:
@@ -158,10 +181,10 @@ print valence_model.summary()
 #model training
 print 'Training...'
 history = valence_model.fit_generator(
-	multi_input_gen_train.generate_no_shuffle(), 
+	multi_input_gen_train.generate(), 
 	steps_per_epoch=multi_input_gen_train.stp_per_epoch,
 	epochs = num_epochs, 
-	validation_data=multi_input_gen_val.generate_no_shuffle(),
+	validation_data=multi_input_gen_val.generate(),
 	validation_steps=multi_input_gen_val.stp_per_epoch,
 	callbacks=callbacks_list,
 	verbose=True)
