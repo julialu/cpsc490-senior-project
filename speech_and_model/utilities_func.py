@@ -221,9 +221,9 @@ class multi_input_generator():
     self.w = self.x2.shape[2]
     self.c = self.x2.shape[3]
     
-    self.idx_s = np.arange(self.sample_size-self.seq_len)
+    self.idx_s = np.arange(self.sample_size-self.seq_len + 1)
     self.batch_size = batch_size
-    self.stp_per_epoch = int(ceil(float(self.sample_size - self.seq_len)/self.batch_size))
+    self.stp_per_epoch = int(ceil(float(len(self.idx_s))/self.batch_size))
     
     self.frames_per_annotation = frames_per_annotation
     
@@ -231,20 +231,22 @@ class multi_input_generator():
   def generate(self):
     
     while True:
-      
+      np.random.shuffle(self.idx_s)      
+
       for b in range(self.stp_per_epoch):
 
-        np.random.shuffle(self.idx_s)
-        rnd_idx = self.idx_s[:self.batch_size]
 
-        x1b = np.empty([self.batch_size,self.seq_len*self.frames_per_annotation,self.f])
-        x2b = np.empty([self.batch_size,self.seq_len,self.h,self.w,self.c])
-        yb = np.empty([self.batch_size])
+        rnd_idx = self.idx_s[b*self.batch_size:(b+1)*self.batch_size]
+
+        x1b = np.empty([len(rnd_idx),self.seq_len*self.frames_per_annotation,self.f])
+        x2b = np.empty([len(rnd_idx),self.seq_len,self.h,self.w,self.c])
+        yb = np.empty([len(rnd_idx)])
         
         for i in range(len(rnd_idx)):
           
           ri = rnd_idx[i]
-          x1b[i,:,:] = self.x1[ri:ri+(self.seq_len*self.frames_per_annotation),:]
+          x1_ri = ri * self.frames_per_annotation
+          x1b[i,:,:] = self.x1[x1_ri:x1_ri+(self.seq_len*self.frames_per_annotation),:]
           x2b[i,:,:,:,:] = self.x2[ri:ri+self.seq_len,:,:,:]
           yb[i] = self.y[ri+self.seq_len-1]
 
@@ -294,9 +296,9 @@ class audio_generator():
     
     self.f = self.x.shape[1]
     
-    self.idx_s = np.arange(self.sample_size-self.seq_len)
+    self.idx_s = np.arange(self.sample_size-self.seq_len + 1)
     self.batch_size = batch_size
-    self.stp_per_epoch = int(ceil(float(self.sample_size - self.seq_len)/self.batch_size))
+    self.stp_per_epoch = int(ceil(float(len(self.idx_s))/self.batch_size))
     
     self.frames_per_annotation = frames_per_annotation
     
@@ -305,19 +307,21 @@ class audio_generator():
     
     while True:
       
+      np.random.shuffle(self.idx_s)      
+
       for b in range(self.stp_per_epoch):
 
-        # np.random.shuffle(self.idx_s)
-        rnd_idx = self.idx_s[:self.batch_size]
 
-        xb = np.empty([self.batch_size,self.seq_len*self.frames_per_annotation,self.f])
+        rnd_idx = self.idx_s[b*self.batch_size:(b+1)*self.batch_size]
 
-        yb = np.empty([self.batch_size])
+        xb = np.empty([len(rnd_idx),self.seq_len*self.frames_per_annotation,self.f])
+        yb = np.empty([len(rnd_idx)])
         
         for i in range(len(rnd_idx)):
-          
+            
             ri = rnd_idx[i]
-            xb[i,:,:] = self.x[ri:ri+(self.seq_len*self.frames_per_annotation),:]
+            x_ri = self.frames_per_annotation * ri
+            xb[i,:,:] = self.x[x_ri:x_ri+(self.seq_len*self.frames_per_annotation),:]
             yb[i] = self.y[ri+self.seq_len-1]
 
         yield xb, yb
