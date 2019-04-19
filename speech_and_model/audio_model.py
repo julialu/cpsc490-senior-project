@@ -93,7 +93,7 @@ features_dim = speech_train_x.shape[1]
 
 #callbacks
 best_model = ModelCheckpoint('../models/audio_model.hdf5', monitor='val_loss', save_best_only=True, mode='min')  #save the best model
-early_stopping_monitor = EarlyStopping(patience=5)  #stop training when the model is not improving
+early_stopping_monitor = EarlyStopping(patience=7)  #stop training when the model is not improving
 callbacks_list = [early_stopping_monitor, best_model]
 
 #model definition
@@ -101,12 +101,12 @@ speech_input = Input(shape=(time_dim, features_dim))
 
 gru = Bidirectional(GRU(lstm1_depth, return_sequences=False))(speech_input)
 norm = BatchNormalization()(gru)
-speech_features = Dense(feature_vector_size, activation='relu')(norm)
+speech_features = Dense(128, activation='relu')(norm)
 
 drop = Dropout(drop_prob)(speech_features)
-hidden1 = Dense(128, activation='relu')(drop)
-hidden2 = Dense(64, activation='relu')(hidden1)
-out = Dense(1, activation='linear')(hidden2)
+# hidden1 = Dense(128, activation='relu')(drop)
+# hidden2 = Dense(64, activation='relu')(hidden1)
+out = Dense(1, activation='linear')(drop)
 
 #model creation
 valence_model = Model(inputs=[speech_input], outputs=out)
