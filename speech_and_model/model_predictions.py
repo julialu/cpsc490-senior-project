@@ -26,36 +26,50 @@ frames_per_annotation = 4
 
 #load classification model and latent extractor
 print 'Loading model...'
-valence_model = load_model('../models/audio_model.hdf5', custom_objects={'CCC':uf.CCC})
+valence_model = load_model('../models/audio_model_ccc.hdf5', custom_objects={'ccc_error':uf.ccc_error})
 print 'Model successfully loaded'
 
 print 'Loading dataset...'
-speech_valid_x = np.load('../matrices/speech_valid_predictors.npy')
-validation_target = np.load('../matrices/validation_target.npy')
-audio_gen_val = uf.audio_generator(speech_valid_x[:300*4], validation_target[:300], SEQ_LENGTH, batch_size, frames_per_annotation)
-print 'Dataset successfully loaded'
+config = loadconfig.load()
+cfg = ConfigParser.ConfigParser()
+cfg.read(config)
 
+#load parameters from config file
+NEW_MODEL = cfg.get('model', 'save_model')
+SPEECH_TRAIN_PRED = cfg.get('model', 'training_predictors_load')
+SPEECH_TRAIN_TARGET = cfg.get('model', 'training_target_load')
+SPEECH_VALID_PRED = cfg.get('model', 'validation_predictors_load')
+VALIDATION_TARGET = cfg.get('model', 'validation_target_load')
+SEQ_LENGTH = cfg.getint('preprocessing', 'sequence_length')
+
+#load datasets
+# speech_train_x = np.load(SPEECH_TRAIN_PRED)
+train_target = np.load(SPEECH_TRAIN_TARGET)
+speech_valid_x = np.load(SPEECH_VALID_PRED)
+validation_target = np.load(VALIDATION_TARGET)
+audio_gen_val = uf.audio_generator(speech_valid_x, validation_target, SEQ_LENGTH, batch_size, frames_per_annotation)
+print 'Dataset successfully loaded'
 
 print 'Getting predictions...'
 predictions = valence_model.predict_generator(audio_gen_val.generate_no_shuffle(),
     steps=audio_gen_val.stp_per_epoch)
 
 predictions = predictions.reshape(predictions.shape[0])
+
 # apply f_trick
 ann_folder = '../dataset/Training/Annotations'
-target_mean, target_std = uf.find_mean_std(ann_folder)
-predictions = uf.f_trick(predictions, target_mean, target_std)
+# target_mean, target_std = uf.find_mean_std(ann_folder)
+# predictions = uf.f_trick(predictions, target_mean, target_std)
 
-#apply butterworth filter
-b, a = butter(3, 0.01, 'low')
-predictions = filtfilt(b, a, predictions)
-
-ccc = ccc2(predictions, validation_target[15:300])  #compute ccc
-print "CCC = " + str(ccc)
+# #apply butterworth filter
+# b, a = butter(3, 0.01, 'low')
+# predictions = filtfilt(b, a, predictions)
 
 print predictions
 print validation_target
 
+ccc = ccc2(predictions, validation_target)  #compute ccc
+print "CCC = " + str(ccc)
 
 def predict_datapoint(input_sound, input_annotation):
     '''
