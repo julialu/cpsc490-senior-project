@@ -35,6 +35,7 @@ print "Training target: " + SPEECH_TRAIN_TARGET
 print "Validation predictors: " + SPEECH_VALID_PRED
 print "Validation target: " + VALIDATION_TARGET
 
+SEQ_LENGTH = 200
 #load datasets
 speech_train_x = np.load(SPEECH_TRAIN_PRED, mmap_mode='r')
 train_target = np.load(SPEECH_TRAIN_TARGET, mmap_mode='r')
@@ -43,16 +44,16 @@ validation_target = np.load(VALIDATION_TARGET, mmap_mode='r')
 
 # #rescale datasets to mean 0 and std 1 (validation with respect
 # #to training mean and std)
-# tr_mean = np.mean(speech_train_x)
-# tr_std = np.std(speech_train_x)
-# v_mean = np.mean(speech_valid_x)
-# v_std = np.std(speech_valid_x)
-# speech_train_x = np.subtract(speech_train_x, tr_mean)
-# speech_train_x = np.divide(speech_train_x, tr_std)
-# speech_valid_x = np.subtract(speech_valid_x, tr_mean)
-# speech_valid_x = np.divide(speech_valid_x, tr_std)
+tr_mean = np.mean(speech_train_x)
+tr_std = np.std(speech_train_x)
+v_mean = np.mean(speech_valid_x)
+v_std = np.std(speech_valid_x)
+speech_train_x = np.subtract(speech_train_x, tr_mean)
+speech_train_x = np.divide(speech_train_x, tr_std)
+speech_valid_x = np.subtract(speech_valid_x, tr_mean)
+speech_valid_x = np.divide(speech_valid_x, tr_std)
 
-# #normalize target between 0 and 1
+#normalize target between 0 and 1
 # train_target = np.multiply(train_target, 0.5)
 # train_target = np.add(train_target, 0.5)
 # validation_target = np.multiply(validation_target, 0.5)
@@ -74,8 +75,8 @@ drop_prob = 0.3
 # determined in preprocessing, NOT hyperparameter
 frames_per_annotation = 4
 
-audio_gen_train = uf.audio_generator(speech_train_x, train_target, SEQ_LENGTH, batch_size, frames_per_annotation)
-audio_gen_val = uf.audio_generator(speech_valid_x, validation_target, SEQ_LENGTH, batch_size, frames_per_annotation)
+audio_gen_train = uf.audio_generator(speech_train_x[:5000*4], train_target[:5000], SEQ_LENGTH, batch_size, frames_per_annotation)
+audio_gen_val = uf.audio_generator(speech_valid_x[:2000*4], validation_target[:2000], SEQ_LENGTH, batch_size, frames_per_annotation)
 
 # reg = regularizers.l2(regularization_lambda)
 sgd = optimizers.SGD(lr=0.001, decay=0.003, momentum=0.5)
@@ -99,19 +100,26 @@ callbacks_list = [early_stopping_monitor, best_model]
 #model definition
 speech_input = Input(shape=(time_dim, features_dim))
 
-gru = Bidirectional(GRU(lstm1_depth, return_sequences=False))(speech_input)
-norm = BatchNormalization()(gru)
-speech_features = Dense(128, activation='relu')(norm)
+gru = Bidirectional(GRU(lstm1_depth, return_sequences=True))(speech_input)
 
-drop = Dropout(drop_prob)(speech_features)
+# gru2 = Bidirectional(GRU(128, return_sequences=False))(gru)
+norm = BatchNormalization()(gru)
+hidden = TimeDistributed(Dense(8, activation='linear'))(norm)
+drop = Dropout(drop_prob)(hidden)
+flat = Flatten()(drop)
+out = Dense(SEQ_LENGTH, activation='linear')(flat)
+
+# speech_features = Dense(8, activation='linear')(norm)
+
+# drop = Dropout(0.3)(speech_features)
 # hidden1 = Dense(128, activation='relu')(drop)
 # hidden2 = Dense(64, activation='relu')(hidden1)
-out = Dense(1, activation='linear')(drop)
+# out = Dense(1, activation='linear')(drop)
 
 #model creation
 valence_model = Model(inputs=[speech_input], outputs=out)
-#valence_model.compile(loss=batch_CCC, optimizer=opt)
-valence_model.compile(loss=uf.ccc_error, optimizer=opt)
+valence_model.compile(loss=batch_CCC, optimizer=opt)
+# valence_model.compile(loss=uf.ccc_error, optimizer=opt)
 
 print valence_model.summary()
 

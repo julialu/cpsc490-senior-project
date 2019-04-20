@@ -26,7 +26,7 @@ frames_per_annotation = 4
 
 #load classification model and latent extractor
 print 'Loading model...'
-valence_model = load_model('../models/audio_model_ccc.hdf5', custom_objects={'ccc_error':uf.ccc_error})
+valence_model = load_model('../models/audio_model.hdf5', custom_objects={'ccc_error':uf.ccc_error})
 print 'Model successfully loaded'
 
 print 'Loading dataset...'
@@ -47,6 +47,11 @@ SEQ_LENGTH = cfg.getint('preprocessing', 'sequence_length')
 train_target = np.load(SPEECH_TRAIN_TARGET)
 speech_valid_x = np.load(SPEECH_VALID_PRED)
 validation_target = np.load(VALIDATION_TARGET)
+
+n = 50000
+speech_valid_x = speech_valid_x[:n*frames_per_annotation]
+validation_target = validation_target[:n]
+
 audio_gen_val = uf.audio_generator(speech_valid_x, validation_target, SEQ_LENGTH, batch_size, frames_per_annotation)
 print 'Dataset successfully loaded'
 
@@ -58,17 +63,17 @@ predictions = predictions.reshape(predictions.shape[0])
 
 # apply f_trick
 ann_folder = '../dataset/Training/Annotations'
-# target_mean, target_std = uf.find_mean_std(ann_folder)
-# predictions = uf.f_trick(predictions, target_mean, target_std)
+target_mean, target_std = uf.find_mean_std(ann_folder)
+predictions = uf.f_trick(predictions, target_mean, target_std)
 
-# #apply butterworth filter
-# b, a = butter(3, 0.01, 'low')
-# predictions = filtfilt(b, a, predictions)
+#apply butterworth filter
+b, a = butter(3, 0.01, 'low')
+predictions = filtfilt(b, a, predictions)
 
 print predictions
 print validation_target
 
-ccc = ccc2(predictions, validation_target)  #compute ccc
+ccc = ccc2(predictions, validation_target[15:])  #compute ccc
 print "CCC = " + str(ccc)
 
 def predict_datapoint(input_sound, input_annotation):

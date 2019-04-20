@@ -315,14 +315,14 @@ class audio_generator():
         rnd_idx = self.idx_s[b*self.batch_size:(b+1)*self.batch_size]
 
         xb = np.empty([len(rnd_idx),self.seq_len*self.frames_per_annotation,self.f])
-        yb = np.empty([len(rnd_idx)])
+        yb = np.empty([len(rnd_idx),self.seq_len])
         
         for i in range(len(rnd_idx)):
             
             ri = rnd_idx[i]
             x_ri = self.frames_per_annotation * ri
             xb[i,:,:] = self.x[x_ri:x_ri+(self.seq_len*self.frames_per_annotation),:]
-            yb[i] = self.y[ri+self.seq_len-1]
+            yb[i, :] = self.y[ri:ri+self.seq_len]
 
         yield xb, yb
 
