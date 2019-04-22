@@ -206,13 +206,14 @@ def gen_fake_annotations(frames_count, output_folder):
 class multi_input_generator():
   
   # x1 is audio, x2 is video
-  def __init__(self,x1,x2,y,seq_len,batch_size,frames_per_annotation):
+  def __init__(self,x1,x2,y,seq_len,video_seq_len,batch_size,frames_per_annotation=4, seq_overlap=0.25):
     
     self.x1 = x1
     self.x2 = x2
     self.y = y
     
     self.seq_len = seq_len
+    self.video_seq_len = video_seq_len
     self.sample_size = self.y.shape[0]
     
     self.f = self.x1.shape[1]
@@ -220,68 +221,74 @@ class multi_input_generator():
     self.h = self.x2.shape[1]
     self.w = self.x2.shape[2]
     self.c = self.x2.shape[3]
+
+    self.seq_overlap = seq_overlap
     
-    self.idx_s = np.arange(self.sample_size-self.seq_len + 1)
+    self.idx_s = np.arange(0, self.sample_size-self.seq_len + 1, int((1.0-self.seq_overlap) * self.seq_len))
     self.batch_size = batch_size
     self.stp_per_epoch = int(ceil(float(len(self.idx_s))/self.batch_size))
     
     self.frames_per_annotation = frames_per_annotation
     
    
-  def generate(self):
+  def generate(self, shuffle=True):
     
     while True:
-      np.random.shuffle(self.idx_s)      
+      shuffled_idx_s = self.idx_s
+
+      if shuffle:
+        shuffled_idx_s = np.random.permutation(self.idx_s)      
 
       for b in range(self.stp_per_epoch):
 
 
-        rnd_idx = self.idx_s[b*self.batch_size:(b+1)*self.batch_size]
+        rnd_idx = shuffled_idx_s[b*self.batch_size:(b+1)*self.batch_size]
 
         x1b = np.empty([len(rnd_idx),self.seq_len*self.frames_per_annotation,self.f])
-        x2b = np.empty([len(rnd_idx),self.seq_len,self.h,self.w,self.c])
-        yb = np.empty([len(rnd_idx)])
+        x2b = np.empty([len(rnd_idx),self.seq_len-self.video_seq_len+1,self.video_seq_len,self.h,self.w,self.c])
+        yb = np.empty([len(rnd_idx),self.seq_len-self.video_seq_len+1])
         
         for i in range(len(rnd_idx)):
           
           ri = rnd_idx[i]
           x1_ri = ri * self.frames_per_annotation
           x1b[i,:,:] = self.x1[x1_ri:x1_ri+(self.seq_len*self.frames_per_annotation),:]
-          x2b[i,:,:,:,:] = self.x2[ri:ri+self.seq_len,:,:,:]
-          yb[i] = self.y[ri+self.seq_len-1]
+          for j in range(x2b.shape[1]):
+            x2b[i,j,:,:,:,:] = self.x2[ri+j:ri+j+self.video_seq_len,:,:,:]
+          yb[i,:] = self.y[ri+self.video_seq_len-1:ri+self.seq_len]
 
         yield [x1b, x2b], yb
 
-  def generate_no_shuffle(self):
-    while True:
+  # def generate_no_shuffle(self):
+  #   while True:
       
-      for b in range(self.stp_per_epoch):
-        start = b * self.batch_size
-        x1Start = self.frames_per_annotation*start
+  #     for b in range(self.stp_per_epoch):
+  #       start = b * self.batch_size
+  #       x1Start = self.frames_per_annotation*start
 
-        # cut needed slices so we only access disk once
-        x1Slice = self.x1[x1Start:x1Start+(self.seq_len+self.batch_size)*self.frames_per_annotation, :]
-        x2Slice = self.x2[start:start+self.seq_len+self.batch_size, :, :, :]
-        ySlice = self.y[start:start+self.seq_len+self.batch_size]
+  #       # cut needed slices so we only access disk once
+  #       x1Slice = self.x1[x1Start:x1Start+(self.seq_len+self.batch_size)*self.frames_per_annotation, :]
+  #       x2Slice = self.x2[start:start+self.seq_len+self.batch_size, :, :, :]
+  #       ySlice = self.y[start:start+self.seq_len+self.batch_size]
 
-        x1b = []
-        x2b = []
-        yb = []
+  #       x1b = []
+  #       x2b = []
+  #       yb = []
 
-        for i in range(self.batch_size):
-          x1_i = self.frames_per_annotation * i
-          # x1b[i,:,:] = x1Slice[x1_i:x1_i+(self.seq_len*self.frames_per_annotation),:]
-          # x2b[i,:,:,:,:] = x2Slice[i:i+self.seq_len,:,:,:]
-          # yb[i] = self.ySlice[i+self.seq_len-1]
+  #       for i in range(self.batch_size):
+  #         x1_i = self.frames_per_annotation * i
+  #         # x1b[i,:,:] = x1Slice[x1_i:x1_i+(self.seq_len*self.frames_per_annotation),:]
+  #         # x2b[i,:,:,:,:] = x2Slice[i:i+self.seq_len,:,:,:]
+  #         # yb[i] = self.ySlice[i+self.seq_len-1]
 
-          if i + self.seq_len > x2Slice.shape[0]:
-            break
+  #         if i + self.seq_len > x2Slice.shape[0]:
+  #           break
 
-          x1b.append(x1Slice[x1_i:x1_i+(self.seq_len*self.frames_per_annotation),:])
-          x2b.append(x2Slice[i:i+self.seq_len,:,:,:])
-          yb.append(ySlice[i+self.seq_len-1])
+  #         x1b.append(x1Slice[x1_i:x1_i+(self.seq_len*self.frames_per_annotation),:])
+  #         x2b.append(x2Slice[i:i+self.seq_len,:,:,:])
+  #         yb.append(ySlice[i+self.seq_len-1])
 
-        yield [np.array(x1b), np.array(x2b)], np.array(yb)
+  #       yield [np.array(x1b), np.array(x2b)], np.array(yb)
 
 class audio_generator():
   
