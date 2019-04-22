@@ -4,8 +4,8 @@ import os
 import pandas
 import ConfigParser
 import essentia.standard as ess
-from keras import backend as K
-from keras.models import load_model
+from tensorflow.keras import backend as K
+from tensorflow.keras.models import load_model
 from scipy.signal import filtfilt, butter
 import utilities_func as uf
 import utilities_func as uf
@@ -29,6 +29,7 @@ MODEL = cfg.get('model', 'load_model')
 SR = cfg.getint('sampling', 'sr')
 HOP_SIZE = cfg.getint('stft', 'hop_size')
 
+SEQ_LENGTH = 200
 fps = 25  #annotations per second
 hop_annotation = SR /fps
 frames_per_annotation = hop_annotation/float(HOP_SIZE)
@@ -50,9 +51,10 @@ def batch_CCC(y_true, y_pred):
     CCC = CCC /float(batch_size)
     return CCC
 
+MODEL = '../models/audio_model_seq_128_64_3drop.hdf5'
 #load classification model and latent extractor
 valence_model = load_model(MODEL, custom_objects={'CCC':uf.CCC,'batch_CCC':batch_CCC})
-latent_extractor = K.function(inputs=[valence_model.input], outputs=[valence_model.get_layer('flatten_1').output])
+# latent_extractor = K.function(inputs=[valence_model.input], outputs=[valence_model.get_layer('flatten_1').output])
 
 #load datasets rescaling
 reference_predictors = np.load(REFERENCE_PREDICTORS_LOAD)
@@ -162,7 +164,10 @@ def predict_datapoint(input_sound, input_annotation):
 
     #apply f_trick
     ann_folder = '../dataset/Training/Annotations'
-    target_mean, target_std = uf.find_mean_std(ann_folder)
+    # target_mean, target_std = uf.find_mean_std(ann_folder)
+    train_labels = np.load('../matrices/training_2A_S_target.npy')
+    target_mean = np.mean(train_labels)
+    target_std = np.std(train_labels)
     final_pred = uf.f_trick(final_pred, target_mean, target_std)
 
     #apply butterworth filter
@@ -235,7 +240,7 @@ def evaluate_all_data(sound_dir, annotation_dir):
         annotation_file = annotation_dir + '/' + datapoint
         name = datapoint.split('.')[0]
         print 'Processing: ' + name
-        sound_file = sound_dir + '/' + name +".mp4.wav"
+        sound_file = sound_dir + '/' + name +".wav"
         temp_ccc = predict_datapoint(sound_file, annotation_file)
         ccc.append(temp_ccc)
     ccc = np.array(ccc)
@@ -261,3 +266,5 @@ def extract_LLD_dataset(sound_dir, annotation_dir):
         lld = extract_LLD_datapoint(sound_file, annotation_file)
         output_filename = LLD_DIR + '/' + name + '.npy'
         np.save(output_filename, lld)
+
+evaluate_all_data('../dataset/Validation/audio', '../dataset/Validation/Annotations')
