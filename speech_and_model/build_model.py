@@ -77,19 +77,11 @@ print "val image loaded with shape:" + str(video_valid_x.shape)
 lbl_vl = np.load("../matrices/fullbody_lbl_vl.npy", mmap_mode='r')
 print "val labels loaded with shape:" + str(lbl_vl.shape)
 
-# for i in range(lbl_tr.shape[0]):
-# 	if lbl_tr[i] != train_target[i]:
-# 		print i, 'Audio', train_target[i], 'Video', lbl_tr[i]
-
-# for i in range(lbl_vl.shape[0]):
-# 	if lbl_vl[i] != validation_target[i]:
-# 		print 'Audio', validation_target[i], 'Video', lbl_vl[i]
-
 #hyperparameters
 batch_size = 128
 num_epochs = 200
 lstm1_depth = 250
-feature_vector_size = 256
+feature_vector_size = 256 # right now my model assumes that this is 8, might need to change the dense layers if you make it anything higher than 8 
 drop_prob = 0.3
 # regularization_lambda = 0.01
 
@@ -134,16 +126,19 @@ ch_n = 1
 video_input = Input(shape=(SEQ_LENGTH, img_x, img_y, ch_n), name='video_input')
 
 layer = Conv3D(32, kernel_size=(3, 3, 3), activation='relu', padding='same')(video_input)
-layer = Conv3D(32, kernel_size=(3, 3, 3), activation='relu', padding='same')(layer)
 layer = MaxPooling3D(pool_size=(3, 3, 3), padding='same')(layer)
 layer = BatchNormalization()(layer) 
 
-layer = Conv3D(64, kernel_size=(3, 3, 3), activation='relu', padding='same')(layer)
 layer = Conv3D(64, kernel_size=(3, 3, 3), activation='relu', padding='same')(layer)
 layer = MaxPooling3D(pool_size=(3, 3, 3), padding='same')(layer)
 layer = BatchNormalization()(layer) 
 
 layer = Flatten()(layer)
+layer = Dense(256,activation='relu', name='conv_out')(layer)
+layer = Dense(128,activation='relu')(layer)
+layer = Dropout(0.6)(layer)
+layer = Dense(32,activation='relu')(layer)
+layer = Dropout(0.6)(layer)
 video_features = Dense(feature_vector_size,activation='relu', name='video_features')(layer)
 
 # attention weights
