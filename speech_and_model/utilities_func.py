@@ -296,7 +296,7 @@ class audio_generator():
     
     self.f = self.x.shape[1]
     
-    self.idx_s = np.arange(self.sample_size-self.seq_len + 1)
+    self.idx_s = np.arange(0, self.sample_size-self.seq_len + 1, int(0.8 * self.seq_len))
     self.batch_size = batch_size
     self.stp_per_epoch = int(ceil(float(len(self.idx_s))/self.batch_size))
     

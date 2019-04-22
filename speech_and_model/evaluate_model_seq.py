@@ -52,8 +52,10 @@ def batch_CCC(y_true, y_pred):
     CCC = CCC /float(batch_size)
     return CCC
 
+MODEL = '../models/audio_model_seq_128_64_3drop.hdf5'
 #load classification model and latent extractor
 valence_model = load_model('../models/audio_model.hdf5', custom_objects={'CCC':uf.CCC,'batch_CCC':batch_CCC})
+
 # latent_extractor = K.function(inputs=[valence_model.input], outputs=[valence_model.get_layer('flatten_1').output])
 
 #load datasets rescaling
@@ -164,7 +166,10 @@ def predict_datapoint(input_sound, input_annotation):
 
     #apply f_trick
     ann_folder = '../dataset/Training/Annotations'
-    target_mean, target_std = uf.find_mean_std(ann_folder)
+    # target_mean, target_std = uf.find_mean_std(ann_folder)
+    train_labels = np.load('../matrices/training_2A_S_target.npy')
+    target_mean = np.mean(train_labels)
+    target_std = np.std(train_labels)
     final_pred = uf.f_trick(final_pred, target_mean, target_std)
 
     #apply butterworth filter

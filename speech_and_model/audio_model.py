@@ -65,7 +65,7 @@ print train_target.shape
 print validation_target.shape
 
 #hyperparameters
-batch_size = 128
+batch_size = 50
 num_epochs = 200
 lstm1_depth = 250
 feature_vector_size = 256
@@ -75,8 +75,8 @@ drop_prob = 0.3
 # determined in preprocessing, NOT hyperparameter
 frames_per_annotation = 4
 
-audio_gen_train = uf.audio_generator(speech_train_x[:5000*4], train_target[:5000], SEQ_LENGTH, batch_size, frames_per_annotation)
-audio_gen_val = uf.audio_generator(speech_valid_x[:2000*4], validation_target[:2000], SEQ_LENGTH, batch_size, frames_per_annotation)
+audio_gen_train = uf.audio_generator(speech_train_x[:400000*4], train_target[:400000], SEQ_LENGTH, batch_size, frames_per_annotation)
+audio_gen_val = uf.audio_generator(speech_valid_x[:100000*4], validation_target[:100000], SEQ_LENGTH, batch_size, frames_per_annotation)
 
 # reg = regularizers.l2(regularization_lambda)
 sgd = optimizers.SGD(lr=0.001, decay=0.003, momentum=0.5)
@@ -93,19 +93,20 @@ time_dim = frames_per_annotation*SEQ_LENGTH
 features_dim = speech_train_x.shape[1]
 
 #callbacks
-best_model = ModelCheckpoint('../models/audio_model.hdf5', monitor='val_loss', save_best_only=True, mode='min')  #save the best model
+best_model = ModelCheckpoint('../models/audio_model_seq_5drop.hdf5', monitor='val_loss', save_best_only=True, mode='min')  #save the best model
 early_stopping_monitor = EarlyStopping(patience=7)  #stop training when the model is not improving
 callbacks_list = [early_stopping_monitor, best_model]
 
 #model definition
 speech_input = Input(shape=(time_dim, features_dim))
 
-gru = Bidirectional(GRU(lstm1_depth, return_sequences=True))(speech_input)
+gru = Bidirectional(GRU(lstm1_depth, return_sequences=True, activation='linear'))(speech_input)
 
 # gru2 = Bidirectional(GRU(128, return_sequences=False))(gru)
 norm = BatchNormalization()(gru)
-hidden = TimeDistributed(Dense(8, activation='linear'))(norm)
-drop = Dropout(drop_prob)(hidden)
+actv = Activation('tanh')(norm)
+hidden = TimeDistributed(Dense(8, activation='linear'))(actv)
+drop = Dropout(0.5)(hidden)
 flat = Flatten()(drop)
 out = Dense(SEQ_LENGTH, activation='linear')(flat)
 
