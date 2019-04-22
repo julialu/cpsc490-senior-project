@@ -206,7 +206,7 @@ def gen_fake_annotations(frames_count, output_folder):
 class multi_input_generator():
   
   # x1 is audio, x2 is video
-  def __init__(self,x1,x2,y,seq_len,batch_size,frames_per_annotation):
+  def __init__(self,x1,x2,y,seq_len,batch_size,frames_per_annotation, seq_overlap=0.2):
     
     self.x1 = x1
     self.x2 = x2
@@ -221,7 +221,7 @@ class multi_input_generator():
     self.w = self.x2.shape[2]
     self.c = self.x2.shape[3]
     
-    self.idx_s = np.arange(self.sample_size-self.seq_len + 1)
+    self.idx_s = np.arange(0, self.sample_size-self.seq_len + 1, int((1.0-seq_overlap) * self.seq_len))
     self.batch_size = batch_size
     self.stp_per_epoch = int(ceil(float(len(self.idx_s))/self.batch_size))
     
@@ -240,7 +240,7 @@ class multi_input_generator():
 
         x1b = np.empty([len(rnd_idx),self.seq_len*self.frames_per_annotation,self.f])
         x2b = np.empty([len(rnd_idx),self.seq_len,self.h,self.w,self.c])
-        yb = np.empty([len(rnd_idx)])
+        yb = np.empty([len(rnd_idx),self.seq_len])
         
         for i in range(len(rnd_idx)):
           
@@ -248,7 +248,7 @@ class multi_input_generator():
           x1_ri = ri * self.frames_per_annotation
           x1b[i,:,:] = self.x1[x1_ri:x1_ri+(self.seq_len*self.frames_per_annotation),:]
           x2b[i,:,:,:,:] = self.x2[ri:ri+self.seq_len,:,:,:]
-          yb[i] = self.y[ri+self.seq_len-1]
+          yb[i,:] = self.y[ri:ri+self.seq_len]
 
         yield [x1b, x2b], yb
 
@@ -279,7 +279,7 @@ class multi_input_generator():
 
           x1b.append(x1Slice[x1_i:x1_i+(self.seq_len*self.frames_per_annotation),:])
           x2b.append(x2Slice[i:i+self.seq_len,:,:,:])
-          yb.append(ySlice[i+self.seq_len-1])
+          yb.append(ySlice[i:i+self.seq_len])
 
         yield [np.array(x1b), np.array(x2b)], np.array(yb)
 

@@ -78,10 +78,11 @@ lbl_vl = np.load("../matrices/fullbody_lbl_vl.npy", mmap_mode='r')
 print "val labels loaded with shape:" + str(lbl_vl.shape)
 
 #hyperparameters
-batch_size = 128
+SEQ_LENGTH = 200
+batch_size = 50
 num_epochs = 200
 lstm1_depth = 250
-feature_vector_size = 256 # right now my model assumes that this is 8, might need to change the dense layers if you make it anything higher than 8 
+feature_vector_size = 8 # right now my model assumes that this is 8, might need to change the dense layers if you make it anything higher than 8 
 drop_prob = 0.3
 # regularization_lambda = 0.01
 
@@ -112,9 +113,10 @@ callbacks_list = [early_stopping_monitor, best_model]
 #model definition
 speech_input = Input(shape=(time_dim, features_dim))
 
-gru = Bidirectional(GRU(lstm1_depth, return_sequences=False))(speech_input)
+gru = Bidirectional(GRU(lstm1_depth, return_sequences=True))(speech_input)
 norm = BatchNormalization()(gru)
-speech_features = Dense(feature_vector_size, activation='relu')(norm)
+reshape = Reshape((SEQ_LENGTH, norm.shape[-1] * frames_per_annotation))(norm)
+speech_features = TimeDistributed(Dense(feature_vector_size, activation='relu'))(reshape)
 
 ## conv3d network for video model 
 
@@ -125,51 +127,48 @@ ch_n = 1
 
 video_input = Input(shape=(SEQ_LENGTH, img_x, img_y, ch_n), name='video_input')
 
-layer = Conv3D(32, kernel_size=(3, 3, 3), activation='relu', padding='same')(video_input)
-layer = MaxPooling3D(pool_size=(3, 3, 3), padding='same')(layer)
-layer = BatchNormalization()(layer) 
+layer = TimeDistributed(Conv2D(32, kernel_size=(3, 3), activation='relu', padding='same'))(video_input)
+layer = TimeDistributed(MaxPooling2D(pool_size=(3, 3), padding='same'))(layer)
+layer = TimeDistributed(BatchNormalization())(layer) 
 
-layer = Conv3D(64, kernel_size=(3, 3, 3), activation='relu', padding='same')(layer)
-layer = MaxPooling3D(pool_size=(3, 3, 3), padding='same')(layer)
-layer = BatchNormalization()(layer) 
+layer = TimeDistributed(Conv2D(64, kernel_size=(3, 3), activation='relu', padding='same'))(layer)
+layer = TimeDistributed(MaxPooling2D(pool_size=(3, 3), padding='same'))(layer)
+layer = TimeDistributed(BatchNormalization())(layer) 
 
-layer = Flatten()(layer)
-layer = Dense(256,activation='relu', name='conv_out')(layer)
-layer = Dense(128,activation='relu')(layer)
-layer = Dropout(0.6)(layer)
-layer = Dense(32,activation='relu')(layer)
-layer = Dropout(0.6)(layer)
-video_features = Dense(feature_vector_size,activation='relu', name='video_features')(layer)
+layer = TimeDistributed(Flatten())(layer)
+layer = TimeDistributed(Dense(256,activation='relu', name='conv_out'))(layer)
+layer = TimeDistributed(Dropout(0.5))(layer)
+layer = TimeDistributed(Dense(128,activation='relu'))(layer)
+layer = TimeDistributed(Dropout(0.5))(layer)
+video_features = TimeDistributed(Dense(feature_vector_size,activation='relu', name='video_features'))(layer)
 
 # attention weights
-
-flat_speech = Flatten()(speech_input)
-flat_video = Flatten()(video_input)
+flat_speech = Reshape((SEQ_LENGTH, features_dim * frames_per_annotation))(speech_input)
+flat_video = TimeDistributed(Flatten())(video_input)
 att_input = Concatenate()([flat_speech, flat_video])
-att_dense1 = Dense(1024, activation='relu')(att_input)
-att_dense2 = Dense(512, activation='relu')(att_dense1)
-att_weights = Dense(2, activation='softmax')(att_dense2)
+att_dense1 = TimeDistributed(Dense(1024, activation='relu'))(att_input)
+drop1 = TimeDistributed(Dropout(0.5))(att_dense1)
+att_dense2 = TimeDistributed(Dense(512, activation='relu'))(drop1)
+drop2 = TimeDistributed(Dropout(0.5))(att_dense2)
+att_weights = TimeDistributed(Dense(2, activation='softmax'))(drop2)
 
-# this results in a [batch_size, feature_vector_size, # inputs] tensor
-repeat_att_weights = RepeatVector(feature_vector_size)(att_weights)
+# this results in a [batch_size, seq_length, feature_vector_size, # inputs] tensor
+repeat_att_weights = TimeDistributed(RepeatVector(feature_vector_size))(att_weights)
 
-w_1 = Lambda(lambda x: x[:,:,0])(repeat_att_weights)
-w_2 = Lambda(lambda x: x[:,:,1])(repeat_att_weights)
+w_1 = TimeDistributed(Lambda(lambda x: x[:,:,0]))(repeat_att_weights)
+w_2 = TimeDistributed(Lambda(lambda x: x[:,:,1]))(repeat_att_weights)
 
 speech_scaled = Multiply()([w_1, speech_features])
 video_scaled = Multiply()([w_2, video_features])
 
 fused_features = Add()([speech_scaled, video_scaled])
-
-drop = Dropout(drop_prob)(fused_features)
-hidden1 = Dense(128, activation='relu')(drop)
-hidden2 = Dense(64, activation='relu')(hidden1)
-out = Dense(1, activation='linear')(hidden2)
+flat = Flatten()(fused_features)
+out = Dense(SEQ_LENGTH, activation='linear')(flat)
 
 #model creation
 valence_model = Model(inputs=[speech_input, video_input], outputs=out)
 #valence_model.compile(loss=batch_CCC, optimizer=opt)
-valence_model.compile(loss=uf.ccc_error, optimizer=opt)
+valence_model.compile(loss=batch_CCC, optimizer=opt)
 
 print valence_model.summary()
 
