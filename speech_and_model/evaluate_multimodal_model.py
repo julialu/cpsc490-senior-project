@@ -79,15 +79,24 @@ def predict_datapoint(audio, video, target):
 	return final_pred
 
 sbj_n = range(1,11)
+# FOR VALIDATION
 str_n = [1]
+# FOR TEST
+#str_n = [3,6,7]
 
 name_format = 'Subject_{0}_Story_{1}'
 annotations_path = '../dataset/Validation/Annotations/'
 model_output_path = '../model_predictions/Validation/'
 
+# annotations_path = '../dataset/Test/Annotations/'
+# model_output_path = '../model_predictions/Test/'
+
+
 train_labels = np.load('../matrices/training_2A_S_target.npy')
 start = 0
 end = 0
+
+cccs = []
 for subject in sbj_n:
 	for story in str_n:
 		name = name_format.format(subject, story)
@@ -122,5 +131,9 @@ for subject in sbj_n:
 		# change this folder for different models
 		df.to_csv(model_output_path + name + '.csv', index=None, header=True)
 
-		print '{} ccc {}'.format(name, ccc2(label_slice, final_pred))
+		ccc = ccc2(label_slice, final_pred)
+		print '{} ccc {}'.format(name, ccc)
+		cccs.append(ccc)
 		start = end
+
+print 'Average ccc: {}'.format(np.mean(cccs))
