@@ -24,6 +24,11 @@ ANNOTATION_FOLDER_V = cfg.get('preprocessing', 'input_annotation_folder_v')
 OUTPUT_PREDICTORS_MATRIX_V = cfg.get('preprocessing', 'output_predictors_matrix_v')
 OUTPUT_TARGET_MATRIX_V = cfg.get('preprocessing', 'output_target_matrix_v')
 
+SOUND_FOLDER_TEST = cfg.get('preprocessing', 'input_audio_folder_test')
+ANNOTATION_FOLDER_TEST = cfg.get('preprocessing', 'input_annotation_folder_test')
+OUTPUT_PREDICTORS_MATRIX_TEST = cfg.get('preprocessing', 'output_predictors_matrix_test')
+OUTPUT_TARGET_MATRIX_TEST = cfg.get('preprocessing', 'output_target_matrix_test')
+
 TARGET_SUBJECT = cfg.get('preprocessing', 'target_subject')
 TARGET_STORY = cfg.get('preprocessing', 'target_story')
 TARGET_DELAY = cfg.getint('preprocessing', 'target_delay')
@@ -125,7 +130,7 @@ def segment_datapoint(features, annotation, sequence_length, sequence_overlap):
     return predictors, target
 
 
-def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', target_story='all', isValidation=False):
+def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', target_story='all', mode='training'):
     '''
     build dataset numpy matrices:
     -predictors: contatining audio features
@@ -138,8 +143,10 @@ def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', ta
     fileNameFormat = 'Subject_{0}_Story_{1}'
     sbj_n_s = range(1,11)
     str_n_s = [2,4,5,8]
-    if isValidation:
+    if mode == 'validation':
         str_n_s = [1]
+    elif mode == 'test':
+        str_n_s = [3, 6, 7]
     # filtered_list = filter_items(annotations, target_subject, target_story)
     num_sounds = len(str_n_s) * len(sbj_n_s)
     #process all files in folders
@@ -178,11 +185,11 @@ def preprocess_dataset(sound_folder, annotation_folder, target_subject='all', ta
 
     return np.array(predictors), np.array(target)
 
-def build_matrices(output_predictors_matrix, output_target_matrix, sound_folder, annotation_folder, isValidation):
+def build_matrices(output_predictors_matrix, output_target_matrix, sound_folder, annotation_folder, mode):
     '''
     build matrices and save numpy files
     '''
-    predictors, target = preprocess_dataset(sound_folder, annotation_folder, TARGET_SUBJECT, TARGET_STORY, isValidation)
+    predictors, target = preprocess_dataset(sound_folder, annotation_folder, TARGET_SUBJECT, TARGET_STORY, mode)
 
     np.save(output_predictors_matrix, predictors)
     np.save(output_target_matrix, target)
@@ -195,5 +202,6 @@ if __name__ == '__main__':
     '''
     build training and validation matrices
     '''
-    build_matrices(OUTPUT_PREDICTORS_MATRIX_T, OUTPUT_TARGET_MATRIX_T, SOUND_FOLDER_T, ANNOTATION_FOLDER_T, False)
-    build_matrices(OUTPUT_PREDICTORS_MATRIX_V, OUTPUT_TARGET_MATRIX_V, SOUND_FOLDER_V, ANNOTATION_FOLDER_V, True)
+    build_matrices(OUTPUT_PREDICTORS_MATRIX_T, OUTPUT_TARGET_MATRIX_T, SOUND_FOLDER_T, ANNOTATION_FOLDER_T, 'training')
+    build_matrices(OUTPUT_PREDICTORS_MATRIX_V, OUTPUT_TARGET_MATRIX_V, SOUND_FOLDER_V, ANNOTATION_FOLDER_V, 'validation')
+    build_matrices(OUTPUT_PREDICTORS_MATRIX_TEST, OUTPUT_TARGET_MATRIX_TEST, SOUND_FOLDER_TEST, ANNOTATION_FOLDER_TEST, 'test')
