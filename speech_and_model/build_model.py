@@ -79,7 +79,7 @@ print "val labels loaded with shape:" + str(lbl_vl.shape)
 
 #hyperparameters
 SEQ_LENGTH = 200
-batch_size = 50
+batch_size = 30
 num_epochs = 200
 lstm1_depth = 250
 feature_vector_size = 8 # right now my model assumes that this is 8, might need to change the dense layers if you make it anything higher than 8 
@@ -106,7 +106,7 @@ time_dim = frames_per_annotation*SEQ_LENGTH
 features_dim = speech_train_x.shape[1]
 
 #callbacks
-best_model = ModelCheckpoint(NEW_MODEL, monitor='val_loss', save_best_only=True, mode='min')  #save the best model
+best_model = ModelCheckpoint('../models/multimodal_30_128_256.hdf5', monitor='val_loss', save_best_only=True, mode='min')  #save the best model
 early_stopping_monitor = EarlyStopping(patience=5)  #stop training when the model is not improving
 callbacks_list = [early_stopping_monitor, best_model]
 
@@ -136,8 +136,8 @@ layer = TimeDistributed(MaxPooling2D(pool_size=(3, 3), padding='same'))(layer)
 layer = TimeDistributed(BatchNormalization())(layer) 
 
 layer = TimeDistributed(Flatten())(layer)
-layer = TimeDistributed(Dense(256,activation='relu', name='conv_out'))(layer)
-layer = TimeDistributed(Dropout(0.5))(layer)
+# layer = TimeDistributed(Dense(256,activation='relu', name='conv_out'))(layer)
+# layer = TimeDistributed(Dropout(0.5))(layer)
 layer = TimeDistributed(Dense(128,activation='relu'))(layer)
 layer = TimeDistributed(Dropout(0.5))(layer)
 video_features = TimeDistributed(Dense(feature_vector_size,activation='relu', name='video_features'))(layer)
@@ -146,11 +146,11 @@ video_features = TimeDistributed(Dense(feature_vector_size,activation='relu', na
 flat_speech = Reshape((SEQ_LENGTH, features_dim * frames_per_annotation))(speech_input)
 flat_video = TimeDistributed(Flatten())(video_input)
 att_input = Concatenate()([flat_speech, flat_video])
-att_dense1 = TimeDistributed(Dense(1024, activation='relu'))(att_input)
+att_dense1 = TimeDistributed(Dense(256, activation='relu'))(att_input)
 drop1 = TimeDistributed(Dropout(0.5))(att_dense1)
-att_dense2 = TimeDistributed(Dense(512, activation='relu'))(drop1)
-drop2 = TimeDistributed(Dropout(0.5))(att_dense2)
-att_weights = TimeDistributed(Dense(2, activation='softmax'))(drop2)
+# att_dense2 = TimeDistributed(Dense(128, activation='relu'))(drop1)
+# drop2 = TimeDistributed(Dropout(0.5))(att_dense2)
+att_weights = TimeDistributed(Dense(2, activation='softmax'))(drop1)
 
 # this results in a [batch_size, seq_length, feature_vector_size, # inputs] tensor
 repeat_att_weights = TimeDistributed(RepeatVector(feature_vector_size))(att_weights)
