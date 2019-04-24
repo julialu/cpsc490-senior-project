@@ -140,20 +140,20 @@ if __name__ == "__main__":
     size = 128
 
     #Path where the videos are
-    # path = "../dataset/Validation/Videos"
+    path = "../dataset/Validation/Videos"
 
-    # #Path where the faces will be saved
-    # savePath ="../dataset/Validation/FullBody"
+    #Path where the faces will be saved
+    savePath ="../dataset/Validation/FullBody"
 
-    # extractFullBodyFromVideo(path, savePath)
+    extractFullBodyFromVideo(path, savePath)
 
-    # #Path where the videos are
-    # path = "../dataset/Training/Videos"
+    #Path where the videos are
+    path = "../dataset/Training/Videos"
 
-    # #Path where the faces will be saved
-    # savePath ="../dataset/Training/FullBody"
+    #Path where the faces will be saved
+    savePath ="../dataset/Training/FullBody"
 
-    # extractFullBodyFromVideo(path, savePath)
+    extractFullBodyFromVideo(path, savePath)
 
     #Path where the videos are
     path = "../dataset/Test/Videos"
