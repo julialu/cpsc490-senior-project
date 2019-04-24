@@ -12,16 +12,44 @@ import utilities_func as uf
 from calculateCCC import ccc2
 import feat_analysis2 as fa
 
+TEST = 'test'
+VAL = 'val'
+
+MODE = TEST
+
 #### load data
+if MODE == VAL:
+	labels = np.load("../matrices/validation_2A_S_target.npy", mmap_mode='r')
+	print("labels loaded with shape:", labels.shape)
 
-labels = np.load("../matrices/validation_2A_S_target.npy", mmap_mode='r')
-print("labels loaded with shape:", labels.shape)
+	video_data = np.load("../matrices/fullbody_img_vl.npy", mmap_mode='r')
+	print("video data loaded with shape:", video_data.shape)
 
-video_data = np.load("../matrices/fullbody_img_vl.npy", mmap_mode='r')
-print("video data loaded with shape:", video_data.shape)
+	audio_data = np.load("../matrices/validation_2A_S_predictors.npy", mmap_mode='r')
+	print("audio data loaded with shape:", audio_data.shape)
 
-audio_data = np.load("../matrices/validation_2A_S_predictors.npy", mmap_mode='r')
-print("audio data loaded with shape:", audio_data.shape)
+	str_n = [1]
+
+	annotations_path = '../dataset/Validation/Annotations/'
+	model_output_path = '../model_predictions/Validation/'
+elif MODE == TEST:
+	labels = np.load("../matrices/test_2A_S_target.npy", mmap_mode='r')
+	print("labels loaded with shape:", labels.shape)
+
+	video_data = np.load("../matrices/fullbody_img_test.npy", mmap_mode='r')
+	print("video data loaded with shape:", video_data.shape)
+
+	audio_data = np.load("../matrices/test_2A_S_predictors.npy", mmap_mode='r')
+	print("audio data loaded with shape:", audio_data.shape)
+
+	str_n = [3,6,7]
+
+	annotations_path = '../dataset/Test/Annotations/'
+	model_output_path = '../model_predictions/Test/'
+
+sbj_n = range(1,11)
+
+name_format = 'Subject_{0}_Story_{1}'
 
 ##### evaluate data
 
@@ -38,7 +66,7 @@ def batch_CCC(y_true, y_pred):
 	CCC = 1-CCC
 	return CCC
 
-MODEL = '../models/multimodal_model.hdf5'
+MODEL = '../models/multimodal_30_128_256.hdf5'
 #load classification model and latent extractor
 valence_model = load_model(MODEL, custom_objects={'CCC':uf.CCC,'batch_CCC':batch_CCC})
 
@@ -78,19 +106,6 @@ def predict_datapoint(audio, video, target):
 	final_pred = np.concatenate((predictions, last_pred))
 	return final_pred
 
-sbj_n = range(1,11)
-# FOR VALIDATION
-str_n = [1]
-# FOR TEST
-#str_n = [3,6,7]
-
-name_format = 'Subject_{0}_Story_{1}'
-annotations_path = '../dataset/Validation/Annotations/'
-model_output_path = '../model_predictions/Validation/'
-
-# annotations_path = '../dataset/Test/Annotations/'
-# model_output_path = '../model_predictions/Test/'
-
 
 train_labels = np.load('../matrices/training_2A_S_target.npy')
 start = 0
@@ -112,7 +127,8 @@ for subject in sbj_n:
 		audio_slice = audio_data[start*frames_per_annotation:end*frames_per_annotation]
 		
 		if not np.array_equal(label_slice, annotations):
-			raise Exception('{} label slice and annotations do not match!'.format(name))
+			print '{} label slice and annotations do not match! Num annotations different: {}'.format(name, (label_slice != annotations).sum())
+			# raise Exception('{} label slice and annotations do not match!'.format(name))
 
 		predictions = predict_datapoint(audio_slice, video_slice, label_slice)
 
