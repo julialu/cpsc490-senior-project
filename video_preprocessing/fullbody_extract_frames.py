@@ -83,7 +83,7 @@ def extractFullBodyFromVideo(path, savePath):
 
         if video[:-4] == "Subject_1_Story_5":
             x_sub_1, y_sub_1, x_sub_2, y_sub_2 = define_frames(x_shift=-50, tag="subject")
-        elif video[:-4] == "Subject_2_Story8":
+        elif video[:-4] == "Subject_2_Story_8":
             x_sub_1, y_sub_1, x_sub_2, y_sub_2 = define_frames(x_shift=-20, tag="subject")
         else:
             x_sub_1, y_sub_1, x_sub_2, y_sub_2 = define_frames(tag="subject")
@@ -144,5 +144,21 @@ if __name__ == "__main__":
 
     #Path where the faces will be saved
     savePath ="../dataset/Validation/FullBody"
+
+    extractFullBodyFromVideo(path, savePath)
+
+    #Path where the videos are
+    path = "../dataset/Training/Videos"
+
+    #Path where the faces will be saved
+    savePath ="../dataset/Training/FullBody"
+
+    extractFullBodyFromVideo(path, savePath)
+
+    #Path where the videos are
+    path = "../dataset/Test/Videos"
+
+    #Path where the faces will be saved
+    savePath ="../dataset/Test/FullBody"
 
     extractFullBodyFromVideo(path, savePath)
