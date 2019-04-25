@@ -43,16 +43,16 @@ validation_target = np.load(VALIDATION_TARGET, mmap_mode='r')
 
 # #rescale datasets to mean 0 and std 1 (validation with respect
 # #to training mean and std)
-# tr_mean = np.mean(speech_train_x)
-# tr_std = np.std(speech_train_x)
-# v_mean = np.mean(speech_valid_x)
-# v_std = np.std(speech_valid_x)
-# speech_train_x = np.subtract(speech_train_x, tr_mean)
-# speech_train_x = np.divide(speech_train_x, tr_std)
-# speech_valid_x = np.subtract(speech_valid_x, tr_mean)
-# speech_valid_x = np.divide(speech_valid_x, tr_std)
+tr_mean = np.mean(speech_train_x)
+tr_std = np.std(speech_train_x)
+v_mean = np.mean(speech_valid_x)
+v_std = np.std(speech_valid_x)
+speech_train_x = np.subtract(speech_train_x, tr_mean)
+speech_train_x = np.divide(speech_train_x, tr_std)
+speech_valid_x = np.subtract(speech_valid_x, tr_mean)
+speech_valid_x = np.divide(speech_valid_x, tr_std)
 
-# #normalize target between 0 and 1
+#normalize target between 0 and 1
 # train_target = np.multiply(train_target, 0.5)
 # train_target = np.add(train_target, 0.5)
 # validation_target = np.multiply(validation_target, 0.5)
