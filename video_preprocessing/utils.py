@@ -26,8 +26,8 @@ def create_img_vec(img_path,img_x, img_y,sbj_n,str_n):
   for f_n in sorted_frames_n:
       iii = Image.open(path+f_n)
       # iii = io.imread(path+f_n)
-      iii = iii.resize((img_x, img_y), Image.ANTIALIAS)
-      iii = (iii-np.mean(iii))/np.std(iii)
+      # iii = iii.resize((img_x, img_y), Image.ANTIALIAS)
+      iii = iii / 255.
       img_s.append(iii[:,:,np.newaxis])
   
   return np.array(img_s)
