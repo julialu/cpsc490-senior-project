@@ -57,8 +57,8 @@ str_n_s = [3,6,7]
 
 lbl_vl = np.concatenate([np.loadtxt(lbl_path.format(sbj_n,str_n),skiprows=1) for sbj_n in sbj_n_s for str_n in str_n_s])
 np.save(open("../matrices/fullbody_lbl_test_128.npy", "w"), lbl_vl)
-print('val images loaded with shape: ',lbl_vl.shape)
+print('test images loaded with shape: ',lbl_vl.shape)
 
 img_vl = create_img_dataset(img_path, lbl_vl.shape[0],img_x,img_y,ch_n,str_n_s,sbj_n_s)
 np.save(open("../matrices/fullbody_img_test_128.npy", "w"), img_vl)
-print('val labels loaded with shape: ',img_vl.shape)
+print('test labels loaded with shape: ',img_vl.shape)
