@@ -349,3 +349,69 @@ class audio_generator():
           yb.append(ySlice[i+self.seq_len-1])
 
         yield np.array(xb), np.array(yb)
+
+class video_generator():
+  
+  # x1 is audio, x2 is video
+  def __init__(self,x2,y,seq_len,batch_size,frames_per_annotation, seq_overlap=0.2):
+    
+    self.x2 = x2
+    self.y = y
+    
+    self.seq_len = seq_len
+    self.sample_size = self.y.shape[0]
+    
+    self.h = self.x2.shape[1]
+    self.w = self.x2.shape[2]
+    self.c = self.x2.shape[3]
+    
+    self.idx_s = np.arange(0, self.sample_size-self.seq_len + 1, int((1.0-seq_overlap) * self.seq_len))
+    self.batch_size = batch_size
+    self.stp_per_epoch = int(ceil(float(len(self.idx_s))/self.batch_size))
+    
+    self.frames_per_annotation = frames_per_annotation
+    
+   
+  def generate(self):
+    
+    while True:
+      np.random.shuffle(self.idx_s)      
+
+      for b in range(self.stp_per_epoch):
+
+
+        rnd_idx = self.idx_s[b*self.batch_size:(b+1)*self.batch_size]
+
+        x2b = np.empty([len(rnd_idx),self.seq_len,self.h,self.w,self.c])
+        yb = np.empty([len(rnd_idx),self.seq_len])
+        
+        for i in range(len(rnd_idx)):
+          
+          ri = rnd_idx[i]
+          x2b[i,:,:,:,:] = self.x2[ri:ri+self.seq_len,:,:,:]
+          yb[i,:] = self.y[ri:ri+self.seq_len]
+
+        yield x2b, yb
+
+
+  def generate_no_shuffle(self):
+    while True:
+      
+      for b in range(self.stp_per_epoch):
+        start = b * self.batch_size
+
+        x2Slice = self.x2[start:start+self.seq_len+self.batch_size, :, :, :]
+        ySlice = self.y[start:start+self.seq_len+self.batch_size]
+
+        x2b = []
+        yb = []
+
+        for i in range(self.batch_size):
+
+          if i + self.seq_len > x2Slice.shape[0]:
+            break
+
+          x2b.append(x2Slice[i:i+self.seq_len,:,:,:])
+          yb.append(ySlice[i:i+self.seq_len])
+
+        yield np.array(x2b), np.array(yb)
