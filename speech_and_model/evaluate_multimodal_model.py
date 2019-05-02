@@ -11,6 +11,7 @@ import utilities_func as uf
 import utilities_func as uf
 from calculateCCC import ccc2
 import feat_analysis2 as fa
+import tensorflow as tf
 
 TEST = 'test'
 VAL = 'val'
@@ -22,7 +23,7 @@ if MODE == VAL:
 	labels = np.load("../matrices/validation_2A_S_target.npy", mmap_mode='r')
 	print("labels loaded with shape:", labels.shape)
 
-	video_data = np.load("../matrices/fullbody_img_vl.npy", mmap_mode='r')
+	video_data = np.load("../matrices/fullbody_img_vl_128.npy", mmap_mode='r')
 	print("video data loaded with shape:", video_data.shape)
 
 	audio_data = np.load("../matrices/validation_2A_S_predictors.npy", mmap_mode='r')
@@ -36,7 +37,7 @@ elif MODE == TEST:
 	labels = np.load("../matrices/test_2A_S_target.npy", mmap_mode='r')
 	print("labels loaded with shape:", labels.shape)
 
-	video_data = np.load("../matrices/fullbody_img_test.npy", mmap_mode='r')
+	video_data = np.load("../matrices/fullbody_img_test_128.npy", mmap_mode='r')
 	print("video data loaded with shape:", video_data.shape)
 
 	audio_data = np.load("../matrices/test_2A_S_predictors.npy", mmap_mode='r')
@@ -51,12 +52,29 @@ sbj_n = range(1,11)
 
 name_format = 'Subject_{0}_Story_{1}'
 
+#load config file
+config = loadconfig.load()
+cfg = ConfigParser.ConfigParser()
+cfg.read(config)
+
+#get values from config file
+
+REFERENCE_PREDICTORS_LOAD = cfg.get('model', 'reference_predictors_load')
+
+# for audio data normalization
+reference_predictors = np.load(REFERENCE_PREDICTORS_LOAD)
+ref_mean = np.mean(reference_predictors)
+ref_std = np.std(reference_predictors)
+
+audio_data = np.subtract(audio_data, ref_mean)
+audio_data = np.divide(audio_data, ref_std)
+
 ##### evaluate data
 
 # change parameters depending on model
 
-SEQ_LENGTH = 200
-batch_size = 50
+SEQ_LENGTH = 100
+batch_size = 32
 frames_per_annotation = 4
 
 #custom loss function
@@ -66,8 +84,10 @@ def batch_CCC(y_true, y_pred):
 	CCC = 1-CCC
 	return CCC
 
-MODEL = '../models/multimodal_30_128_256.hdf5'
+MODEL = '../models/multimodal.hdf5'
 #load classification model and latent extractor
+
+# with tf.device('/cpu:0'):
 valence_model = load_model(MODEL, custom_objects={'CCC':uf.CCC,'batch_CCC':batch_CCC})
 
 print 'Using model ' + MODEL
@@ -131,13 +151,13 @@ for subject in sbj_n:
 			# raise Exception('{} label slice and annotations do not match!'.format(name))
 
 		predictions = predict_datapoint(audio_slice, video_slice, label_slice)
-
+		print predictions[:10], predictions[-10:]
 		target_mean = np.mean(train_labels)
 		target_std = np.std(train_labels)
 		final_pred = uf.f_trick(predictions, target_mean, target_std)
 
 		#apply butterworth filter
-		b, a = butter(3, 0.01, 'low')
+		b, a = butter(1, 0.004, 'low')
 		final_pred = filtfilt(b, a, final_pred)
 
 		# output to csv file

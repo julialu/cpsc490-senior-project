@@ -1,12 +1,11 @@
-#CONVOLUTIONAL NEURAL NETWORK
-#tuned as in https://www.researchgate.net/publication/306187492_Deep_Convolutional_Neural_Networks_and_Data_Augmentation_for_Environmental_Sound_Classification
-
 import numpy as np
+import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, GRU, Dense, Dropout, Activation, Flatten, LSTM, TimeDistributed, Reshape, Bidirectional, BatchNormalization, Add, RepeatVector, Lambda, Multiply, Concatenate
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, History
 from tensorflow.keras import optimizers
 from tensorflow.keras import regularizers
+from tensorflow.keras.utils import multi_gpu_model
 
 from tensorflow.keras.layers import Conv2D, Conv3D, MaxPooling2D, MaxPooling3D, AveragePooling2D, LSTM
 
@@ -52,12 +51,6 @@ speech_train_x = np.divide(speech_train_x, tr_std)
 speech_valid_x = np.subtract(speech_valid_x, tr_mean)
 speech_valid_x = np.divide(speech_valid_x, tr_std)
 
-#normalize target between 0 and 1
-# train_target = np.multiply(train_target, 0.5)
-# train_target = np.add(train_target, 0.5)
-# validation_target = np.multiply(validation_target, 0.5)
-# validation_target = np.add(validation_target, 0.5)
-
 print speech_train_x.shape
 print speech_valid_x.shape
 print train_target.shape
@@ -65,33 +58,31 @@ print validation_target.shape
 
 ## load dataset for video
 
-video_train_x = np.load("../matrices/fullbody_img_tr.npy", mmap_mode='r')
+video_train_x = np.load("../matrices/fullbody_img_tr_128.npy", mmap_mode='r')
 print "train image loaded with shape: " + str(video_train_x.shape)
 
-lbl_tr = np.load("../matrices/fullbody_lbl_tr.npy", mmap_mode='r')
+lbl_tr = np.load("../matrices/fullbody_lbl_tr_128.npy", mmap_mode='r')
 print "train labels loaded with shape:" + str(lbl_tr.shape)
 
-video_valid_x = np.load("../matrices/fullbody_img_vl.npy", mmap_mode='r')
+video_valid_x = np.load("../matrices/fullbody_img_vl_128.npy", mmap_mode='r')
 print "val image loaded with shape:" + str(video_valid_x.shape)
 
-lbl_vl = np.load("../matrices/fullbody_lbl_vl.npy", mmap_mode='r')
+lbl_vl = np.load("../matrices/fullbody_lbl_vl_128.npy", mmap_mode='r')
 print "val labels loaded with shape:" + str(lbl_vl.shape)
 
 #hyperparameters
-SEQ_LENGTH = 200
-batch_size = 30
+SEQ_LENGTH = 100
+batch_size = 32
 num_epochs = 200
-lstm1_depth = 250
-feature_vector_size = 256 # right now my model assumes that this is 8, might need to change the dense layers if you make it anything higher than 8 
-drop_prob = 0.3
-# regularization_lambda = 0.01
+feature_vector_size = 512 # right now my model assumes that this is 8, might need to change the dense layers if you make it anything higher than 8 
+regularization_lambda = 0.0001
 
 # determined in preprocessing, NOT hyperparameter
 frames_per_annotation = 4
 multi_input_gen_train = uf.multi_input_generator(speech_train_x, video_train_x, train_target, SEQ_LENGTH, batch_size, frames_per_annotation)
 multi_input_gen_val = uf.multi_input_generator(speech_valid_x, video_valid_x, validation_target, SEQ_LENGTH, batch_size, frames_per_annotation)
 
-# reg = regularizers.l2(regularization_lambda)
+reg = regularizers.l2(regularization_lambda)
 sgd = optimizers.SGD(lr=0.001, decay=0.003, momentum=0.5)
 opt = optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
 
@@ -107,75 +98,96 @@ features_dim = speech_train_x.shape[1]
 
 #callbacks
 best_model = ModelCheckpoint('../models/multimodal.hdf5', monitor='val_loss', save_best_only=True, mode='min')  #save the best model
-early_stopping_monitor = EarlyStopping(patience=5)  #stop training when the model is not improving
+early_stopping_monitor = EarlyStopping(patience=10)  #stop training when the model is not improving
 callbacks_list = [early_stopping_monitor, best_model]
 
-#model definition
-speech_input = Input(shape=(time_dim, features_dim))
-
-gru = Bidirectional(GRU(lstm1_depth, return_sequences=True))(speech_input)
-norm = BatchNormalization()(gru)
-reshape = Reshape((SEQ_LENGTH, norm.shape[-1] * frames_per_annotation))(norm)
-speech_features = TimeDistributed(Dense(feature_vector_size, activation='relu', kernel_initializer='he_uniform'))(reshape)
-
-## conv3d network for video model 
-
-seq_len = 16
-img_x = 48 
-img_y = 48
+img_x = 128
+img_y = 128
 ch_n = 1
 
-video_input = Input(shape=(SEQ_LENGTH, img_x, img_y, ch_n), name='video_input')
+## conv3d network for video model 
+with tf.device('/gpu:0'):
+	video_input = Input(shape=(SEQ_LENGTH, img_x, img_y, ch_n), name='video_input')
 
-layer = TimeDistributed(Conv2D(32, kernel_size=(3, 3), activation='relu', padding='same', kernel_initializer='he_uniform'))(video_input)
-layer = TimeDistributed(MaxPooling2D(pool_size=(3, 3), padding='same'))(layer)
-layer = TimeDistributed(BatchNormalization())(layer) 
+	layer = TimeDistributed(Conv2D(32, kernel_size=(7, 7), strides=(2,2), activation='relu', padding='same', kernel_initializer='he_uniform', kernel_regularizer=reg), name='video_conv1')(video_input)
+	layer = TimeDistributed(MaxPooling2D(pool_size=(2, 2), padding='same'), name='video_pool1')(layer)
+	layer = TimeDistributed(BatchNormalization(), name='video_norm1')(layer) 
 
-layer = TimeDistributed(Conv2D(64, kernel_size=(3, 3), activation='relu', padding='same', kernel_initializer='he_uniform'))(layer)
-layer = TimeDistributed(MaxPooling2D(pool_size=(3, 3), padding='same'))(layer)
-layer = TimeDistributed(BatchNormalization())(layer) 
+	layer = TimeDistributed(Conv2D(64, kernel_size=(3, 3), activation='relu', padding='same', kernel_initializer='he_uniform', kernel_regularizer=reg), name='video_conv2')(layer)
+	layer = TimeDistributed(MaxPooling2D(pool_size=(2, 2), padding='same'), name='video_pool2')(layer)
+	layer = TimeDistributed(BatchNormalization(), name='video_norm2')(layer) 
 
-layer = TimeDistributed(Flatten())(layer)
-# layer = TimeDistributed(Dense(256,activation='relu', name='conv_out'))(layer)
-# layer = TimeDistributed(BatchNormalization())(layer)
-layer = TimeDistributed(Dense(128,activation='relu', kernel_initializer='he_uniform'))(layer)
-layer = TimeDistributed(BatchNormalization())(layer)
-video_features = TimeDistributed(Dense(feature_vector_size,activation='relu', name='video_features', kernel_initializer='he_uniform'))(layer)
+	layer = TimeDistributed(Conv2D(128, kernel_size=(3, 3), activation='relu', padding='same', kernel_initializer='he_uniform', kernel_regularizer=reg), name='video_conv3')(layer)
+	layer = TimeDistributed(MaxPooling2D(pool_size=(2, 2), padding='same'), name='video_pool3')(layer)
+	layer = TimeDistributed(BatchNormalization(), name='video_norm3')(layer)
+
+
+# audio model
+with tf.device('/gpu:1'):
+	speech_input = Input(shape=(time_dim, features_dim))
+
+	gru = Bidirectional(GRU(256, return_sequences=True, kernel_regularizer=reg), name='audio_gru1')(speech_input)
+	norm = BatchNormalization(name='audio_norm1')(gru)
+	dense = TimeDistributed(Dense(256, kernel_regularizer=reg), name='audio_dense1')(norm)
+	norm2 = TimeDistributed(BatchNormalization(), name='audio_norm2')(dense)
+	# dense2 = TimeDistributed(Dense(256, kernel_regularizer=reg), name='audio_dense2')(norm2)
+	# norm3 = TimeDistributed(BatchNormalization(), name='audio_norm3')(dense2)
+	reshape = Reshape((SEQ_LENGTH, norm2.shape[-1] * frames_per_annotation), name='audio_reshape1')(norm2)
+	# gru2 = Bidirectional(GRU(512, return_sequences=True, kernel_regularizer=reg), name='audio_gru2')(reshape)
+	# norm2 = BatchNormalization(name='audio_norm2')(gru2)
+	# dense = TimeDistributed(Dense(1024, kernel_regularizer=reg), name='audio_dense1')(reshape)
+	# norm2 = TimeDistributed(BatchNormalization(), name='audio_norm2')(dense)
+	speech_features = TimeDistributed(Dense(feature_vector_size, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=reg), name='sum_audio_features')(reshape)
 
 # attention weights
-flat_speech = Reshape((SEQ_LENGTH, features_dim * frames_per_annotation))(speech_input)
-flat_video = TimeDistributed(Flatten())(video_input)
-att_input = Concatenate()([flat_speech, flat_video])
-att_dense1 = TimeDistributed(Dense(256, activation='relu', kernel_initializer='he_uniform'))(att_input)
-att_norm_1 = TimeDistributed(BatchNormalization())(att_dense1)
-att_dense2 = TimeDistributed(Dense(128, activation='relu', kernel_initializer='he_uniform'))(att_norm_1)
-att_norm_2 = TimeDistributed(BatchNormalization())(att_dense2)
-att_weights = TimeDistributed(Dense(2, activation='softmax'))(att_norm_2)
+with tf.device('/gpu:2'):
+	flat_speech = Reshape((SEQ_LENGTH, features_dim * frames_per_annotation), name='att_reshape_speech')(speech_input)
+	flat_video = TimeDistributed(Flatten(), name='att_flat_video')(video_input)
+	att_input = Concatenate(name='att_input')([flat_speech, flat_video])
+	att_dense1 = TimeDistributed(Dense(1024, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=reg), name='att_dense1')(att_input)
+	att_norm_1 = TimeDistributed(BatchNormalization(), name='att_norm1')(att_dense1)
+	# att_gru = Bidirectional(GRU(128, return_sequences=True, kernel_regularizer=reg), name='att_dense1')(att_norm_1)
+	# att_norm_2 = BatchNormalization()(att_gru)
+	att_dense2 = TimeDistributed(Dense(512, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=reg), name='att_dense2')(att_norm_1)
+	att_norm_2 = TimeDistributed(BatchNormalization(), name='att_norm2')(att_dense2)
+	att_dense3 = TimeDistributed(Dense(256, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=reg), name='att_dense3')(att_norm_2)
+	att_norm_3 = TimeDistributed(BatchNormalization(), name='att_norm3')(att_dense3)
+	att_weights = TimeDistributed(Dense(2, activation='softmax', kernel_regularizer=reg), name='att_weights')(att_norm_3)
 
-# this results in a [batch_size, seq_length, feature_vector_size, # inputs] tensor
-repeat_att_weights = TimeDistributed(RepeatVector(feature_vector_size))(att_weights)
+	# this results in a [batch_size, seq_length, feature_vector_size, # inputs] tensor
+	repeat_att_weights = TimeDistributed(RepeatVector(feature_vector_size), name='repeat_att_weights')(att_weights)
 
-w_1 = TimeDistributed(Lambda(lambda x: x[:,:,0]))(repeat_att_weights)
-w_2 = TimeDistributed(Lambda(lambda x: x[:,:,1]))(repeat_att_weights)
+	w_1 = TimeDistributed(Lambda(lambda x: x[:,:,0]), name='w1')(repeat_att_weights)
+	w_2 = TimeDistributed(Lambda(lambda x: x[:,:,1]), name='w2')(repeat_att_weights)
 
-speech_scaled = Multiply()([w_1, speech_features])
-video_scaled = Multiply()([w_2, video_features])
+with tf.device('/gpu:3'):
+	layer = TimeDistributed(Conv2D(256, kernel_size=(3, 3), activation='relu', padding='same', kernel_initializer='he_uniform', kernel_regularizer=reg), name='video_conv4')(layer)
+	layer = TimeDistributed(MaxPooling2D(pool_size=(2, 2), padding='same'), name='video_pool4')(layer)
+	layer = TimeDistributed(BatchNormalization(), name='video_norm4')(layer) 
+	layer = TimeDistributed(Flatten(), name='video_flat')(layer)
+	layer = Bidirectional(GRU(512, return_sequences=True, kernel_regularizer=reg), name='video_gru')(layer)
+	layer = BatchNormalization(name='video_norm5')(layer)
 
-fused_features = Add()([speech_scaled, video_scaled])
-# flat = Flatten()(fused_features)
-hidden1 = TimeDistributed(Dense(128, activation='relu', kernel_initializer='he_uniform'))(fused_features)
-norm1 = TimeDistributed(BatchNormalization())(hidden1)
-hidden2 = TimeDistributed(Dense(64, activation='relu', kernel_initializer='he_uniform'))(norm1)
-norm2 = TimeDistributed(BatchNormalization())(hidden2)
-hidden3 = TimeDistributed(Dense(16, activation='relu', kernel_initializer='he_uniform'))(norm1)
-norm3 = TimeDistributed(BatchNormalization())(hidden2)
-flat = Flatten()(norm3)
-out = Dense(SEQ_LENGTH, activation='linear')(flat)
+	video_features = TimeDistributed(Dense(feature_vector_size,activation='relu', kernel_initializer='he_uniform', kernel_regularizer=reg), name='sum_video_features')(layer)
+	speech_scaled = Multiply()([w_1, speech_features])
+	video_scaled = Multiply()([w_2, video_features])
+
+	fused_features = Add()([speech_scaled, video_scaled])
+	# flat = Flatten()(fused_features)
+	hidden1 = TimeDistributed(Dense (128, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=reg), name='sum_hidden1')(fused_features)
+	norm1 = TimeDistributed(BatchNormalization(), name='sum_hidden_norm1')(hidden1)
+	hidden2 = TimeDistributed(Dense(64, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=reg), name='sum_hidden2')(norm1)
+	norm2 = TimeDistributed(BatchNormalization(), name='sum_hidden_norm2')(hidden2)
+	hidden3 = TimeDistributed(Dense(32, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=reg), name='sum_hidden3')(norm2)
+	norm3 = TimeDistributed(BatchNormalization(), name='sum_hidden_norm3')(hidden3)
+	flat = Flatten(name='sum_flat_out')(norm3)
+	out = Dense(SEQ_LENGTH, activation='linear', kernel_regularizer=reg, name='sum_out')(flat)
 
 #model creation
 valence_model = Model(inputs=[speech_input, video_input], outputs=out)
-#valence_model.compile(loss=batch_CCC, optimizer=opt)
-valence_model.compile(loss=batch_CCC, optimizer=opt)
+valence_model.compile(loss='mse', optimizer=opt)
+valence_model.load_weights('../models/audio_model_reg_256_dense256_reshape_128_64_32_reg1_seq100.hdf5', by_name=True)
+valence_model.load_weights('../models/video_model_32_64_128_256_rnn512_named.hdf5', by_name=True)
 
 print valence_model.summary()
 

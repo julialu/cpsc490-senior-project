@@ -1,6 +1,3 @@
-#CONVOLUTIONAL NEURAL NETWORK
-#tuned as in https://www.researchgate.net/publication/306187492_Deep_Convolutional_Neural_Networks_and_Data_Augmentation_for_Environmental_Sound_Classification
-
 import numpy as np
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, GRU, Dense, Dropout, Activation, Flatten, LSTM, TimeDistributed, Reshape, Bidirectional, BatchNormalization, Add, RepeatVector, Lambda, Multiply, Concatenate
@@ -16,7 +13,7 @@ import utilities_func as uf
 import loadconfig
 import ConfigParser
 import matplotlib.pyplot as plt
-np.random.seed(1)
+np.random.seed(241)
 
 print "loading dataset..."
 config = loadconfig.load()
@@ -35,7 +32,7 @@ print "Training target: " + SPEECH_TRAIN_TARGET
 print "Validation predictors: " + SPEECH_VALID_PRED
 print "Validation target: " + VALIDATION_TARGET
 
-SEQ_LENGTH = 200
+SEQ_LENGTH = 100
 #load datasets
 speech_train_x = np.load(SPEECH_TRAIN_PRED, mmap_mode='r')
 train_target = np.load(SPEECH_TRAIN_TARGET, mmap_mode='r')
@@ -53,33 +50,22 @@ speech_train_x = np.divide(speech_train_x, tr_std)
 speech_valid_x = np.subtract(speech_valid_x, tr_mean)
 speech_valid_x = np.divide(speech_valid_x, tr_std)
 
-#normalize target between 0 and 1
-# train_target = np.multiply(train_target, 0.5)
-# train_target = np.add(train_target, 0.5)
-# validation_target = np.multiply(validation_target, 0.5)
-# validation_target = np.add(validation_target, 0.5)
-
 print speech_train_x.shape
 print speech_valid_x.shape
 print train_target.shape
 print validation_target.shape
 
 #hyperparameters
-batch_size = 50
+batch_size = 32
 num_epochs = 200
-lstm1_depth = 250
-feature_vector_size = 256
-drop_prob = 0.3
-# regularization_lambda = 0.01
+feature_vector_size = 512
 
 # determined in preprocessing, NOT hyperparameter
 frames_per_annotation = 4
 
-audio_gen_train = uf.audio_generator(speech_train_x[:400000*4], train_target[:400000], SEQ_LENGTH, batch_size, frames_per_annotation)
-audio_gen_val = uf.audio_generator(speech_valid_x[:100000*4], validation_target[:100000], SEQ_LENGTH, batch_size, frames_per_annotation)
+audio_gen_train = uf.audio_generator(speech_train_x, train_target, SEQ_LENGTH, batch_size, frames_per_annotation)
+audio_gen_val = uf.audio_generator(speech_valid_x, validation_target, SEQ_LENGTH, batch_size, frames_per_annotation)
 
-# reg = regularizers.l2(regularization_lambda)
-sgd = optimizers.SGD(lr=0.001, decay=0.003, momentum=0.5)
 opt = optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
 
 #custom loss
@@ -89,37 +75,45 @@ def batch_CCC(y_true, y_pred):
     CCC = 1-CCC
     return CCC
 
+regularization_lambda = 0.0001
+reg = regularizers.l2(regularization_lambda)
+
 time_dim = frames_per_annotation*SEQ_LENGTH
 features_dim = speech_train_x.shape[1]
 
 #callbacks
-best_model = ModelCheckpoint('../models/audio_model_seq_5drop.hdf5', monitor='val_loss', save_best_only=True, mode='min')  #save the best model
+best_model = ModelCheckpoint('../models/audio_model_reg_256_dense256_reshape_128_64_32_reg1_seq100.hdf5', monitor='val_loss', save_best_only=True, mode='min')  #save the best model
 early_stopping_monitor = EarlyStopping(patience=7)  #stop training when the model is not improving
 callbacks_list = [early_stopping_monitor, best_model]
 
 #model definition
 speech_input = Input(shape=(time_dim, features_dim))
 
-gru = Bidirectional(GRU(lstm1_depth, return_sequences=True, activation='linear'))(speech_input)
+gru = Bidirectional(GRU(256, return_sequences=True, kernel_regularizer=reg), name='audio_gru1')(speech_input)
+norm = BatchNormalization(name='audio_norm1')(gru)
+dense = TimeDistributed(Dense(256, kernel_regularizer=reg), name='audio_dense1')(norm)
+norm2 = TimeDistributed(BatchNormalization(), name='audio_norm2')(dense)
 
-# gru2 = Bidirectional(GRU(128, return_sequences=False))(gru)
-norm = BatchNormalization()(gru)
-actv = Activation('tanh')(norm)
-hidden = TimeDistributed(Dense(8, activation='linear'))(actv)
-drop = Dropout(0.5)(hidden)
-flat = Flatten()(drop)
-out = Dense(SEQ_LENGTH, activation='linear')(flat)
+reshape = Reshape((SEQ_LENGTH, norm2.shape[-1] * frames_per_annotation), name='audio_reshape1')(norm2)
 
-# speech_features = Dense(8, activation='linear')(norm)
+speech_features = TimeDistributed(Dense(feature_vector_size, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=reg), name='audio_features')(reshape)
 
-# drop = Dropout(0.3)(speech_features)
-# hidden1 = Dense(128, activation='relu')(drop)
-# hidden2 = Dense(64, activation='relu')(hidden1)
-# out = Dense(1, activation='linear')(drop)
+hidden1 = TimeDistributed(Dense (128, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=reg), name='n_hidden1')(speech_features)
+norm1 = TimeDistributed(BatchNormalization(), name='n_hidden_norm1')(hidden1)
+hidden2 = TimeDistributed(Dense(64, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=reg), name='n_hidden2')(norm1)
+norm2 = TimeDistributed(BatchNormalization(), name='n_hidden_norm2')(hidden2)
+hidden3 = TimeDistributed(Dense(32, activation='relu', kernel_initializer='he_uniform', kernel_regularizer=reg), name='n_hidden3')(norm2)
+norm3 = TimeDistributed(BatchNormalization(), name='n_hidden_norm3')(hidden3)
+
+flat = Flatten(name='flat_out')(norm3)
+out = Dense(SEQ_LENGTH, activation='linear', kernel_regularizer=reg, name='out')(flat)
+
+
+
 
 #model creation
 valence_model = Model(inputs=[speech_input], outputs=out)
-valence_model.compile(loss=batch_CCC, optimizer=opt)
+valence_model.compile(loss='mse', optimizer=opt)
 # valence_model.compile(loss=uf.ccc_error, optimizer=opt)
 
 print valence_model.summary()

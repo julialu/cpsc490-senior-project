@@ -29,7 +29,7 @@ MODEL = cfg.get('model', 'load_model')
 SR = cfg.getint('sampling', 'sr')
 HOP_SIZE = cfg.getint('stft', 'hop_size')
 
-SEQ_LENGTH = 200
+SEQ_LENGTH = 100
 
 fps = 25  #annotations per second
 hop_annotation = SR /fps
@@ -46,15 +46,15 @@ else:
 '''
 
 #custom loss function
-batch_size=50
+batch_size=32
 def batch_CCC(y_true, y_pred):
     CCC = uf.CCC(y_true, y_pred)
     CCC = CCC /float(batch_size)
     return CCC
 
-MODEL = '../models/audio_model_seq_128_64_3drop.hdf5'
+MODEL = '../models/audio_model_reg_512_dense_512_reshapegru512_256_128_64_32_reg1_seq100.hdf5'
 #load classification model and latent extractor
-valence_model = load_model('../models/audio_model.hdf5', custom_objects={'CCC':uf.CCC,'batch_CCC':batch_CCC})
+valence_model = load_model(MODEL, custom_objects={'CCC':uf.CCC,'batch_CCC':batch_CCC})
 
 # latent_extractor = K.function(inputs=[valence_model.input], outputs=[valence_model.get_layer('flatten_1').output])
 

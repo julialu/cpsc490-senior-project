@@ -11,6 +11,7 @@ import utilities_func as uf
 import utilities_func as uf
 from calculateCCC import ccc2
 import feat_analysis2 as fa
+import tensorflow as tf
 
 TEST = 'test'
 VAL = 'val'
@@ -45,11 +46,28 @@ sbj_n = range(1,11)
 
 name_format = 'Subject_{0}_Story_{1}'
 
+#load config file
+config = loadconfig.load()
+cfg = ConfigParser.ConfigParser()
+cfg.read(config)
+
+#get values from config file
+
+REFERENCE_PREDICTORS_LOAD = cfg.get('model', 'reference_predictors_load')
+
+# for audio data normalization
+reference_predictors = np.load(REFERENCE_PREDICTORS_LOAD)
+ref_mean = np.mean(reference_predictors)
+ref_std = np.std(reference_predictors)
+
+audio_data = np.subtract(audio_data, ref_mean)
+audio_data = np.divide(audio_data, ref_std)
+
 ##### evaluate data
 
 # change parameters depending on model
 
-SEQ_LENGTH = 200
+SEQ_LENGTH = 100
 batch_size = 32
 frames_per_annotation = 4
 
@@ -60,7 +78,7 @@ def batch_CCC(y_true, y_pred):
 	CCC = 1-CCC
 	return CCC
 
-MODEL = '../models/audio_model_reg_512_256_256_128_32_reg1_seq200.hdf5'
+MODEL = '../models/audio_model_reg_256_dense256_reshape_128_64_32_reg1_seq100.hdf5'
 #load classification model and latent extractor
 valence_model = load_model(MODEL, custom_objects={'CCC':uf.CCC,'batch_CCC':batch_CCC})
 
@@ -119,13 +137,13 @@ for subject in sbj_n:
 			# raise Exception('{} label slice and annotations do not match!'.format(name))
 
 		predictions = predict_datapoint(audio_slice, label_slice)
-		print predictions[:10], predictions[-10:]
+
 		target_mean = np.mean(train_labels)
 		target_std = np.std(train_labels)
 		final_pred = uf.f_trick(predictions, target_mean, target_std)
 
 		#apply butterworth filter
-		b, a = butter(1, 0.01, 'low')
+		b, a = butter(1, 0.004, 'low')
 		final_pred = filtfilt(b, a, final_pred)
 
 		# output to csv file
