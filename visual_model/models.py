@@ -4,6 +4,7 @@ from tensorflow.keras import losses
 from tensorflow.keras import optimizers
 from tensorflow.keras.utils import to_categorical, Sequence
 from tensorflow.keras import regularizers
+from resnet3d import Resnet3DBuilder
 
 class alphacity_conv3d():
   
@@ -267,54 +268,14 @@ class alphacity_timedistributed_reduced():
     reg_conv_3d_model_double_in.summary()
     return reg_conv_3d_model_double_in
 
-
-class tiny_dark_net():
-  def __init__(self,seq_len,img_x,img_y,ch_n):
-    
-    self.seq_len = seq_len
-    self.img_x = img_x
-    self.img_y = img_y
-    self.ch_n = ch_n
-
-  def create(self):
-    video_input = Input(shape=(self.seq_len, self.img_x, self.img_y, self.ch_n), name='video_input')
-
-    layer = TimeDistributed(Conv2D(16, kernel_size=(3, 3), activation='relu', padding='same'))(video_input)
-    layer = TimeDistributed(MaxPooling2D(pool_size=(2, 2), padding='same'))(layer)
-    layer = TimeDistributed(BatchNormalization())(layer) 
-
-    layer = TimeDistributed(Conv2D(32, kernel_size=(3, 3), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(MaxPooling2D(pool_size=(2, 2), padding='same'))(layer)
-    layer = TimeDistributed(BatchNormalization())(layer) 
-
-    layer = TimeDistributed(Conv2D(16, kernel_size=(1, 1), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(Conv2D(128, kernel_size=(3, 3), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(Conv2D(16, kernel_size=(1, 1), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(Conv2D(128, kernel_size=(3, 3), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(MaxPooling2D(pool_size=(2, 2), padding='same'))(layer)
-    layer = TimeDistributed(BatchNormalization())(layer) 
-
-    layer = TimeDistributed(Conv2D(32, kernel_size=(1, 1), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(Conv2D(256, kernel_size=(3, 3), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(Conv2D(32, kernel_size=(1, 1), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(Conv2D(256, kernel_size=(3, 3), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(MaxPooling2D(pool_size=(2, 2), padding='same'))(layer)
-    layer = TimeDistributed(BatchNormalization())(layer) 
-
-    layer = TimeDistributed(Conv2D(64, kernel_size=(1, 1), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(Conv2D(512, kernel_size=(3, 3), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(Conv2D(64, kernel_size=(1, 1), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(Conv2D(512, kernel_size=(3, 3), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(Conv2D(128, kernel_size=(1, 1), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(Conv2D(1000, kernel_size=(1, 1), activation='relu', padding='same'))(layer)
-    layer = TimeDistributed(BatchNormalization())(layer) 
-
-    layer = TimeDistributed(Flatten())(layer)
-    layer = TimeDistributed(Dense(1024,activation='relu', name='conv_out'))(layer)
-    layer = TimeDistributed(Dropout(0.5))(layer)
-    layer = Flatten()(layer)
-    video_features = Dense(self.seq_len,activation='linear', name='video_features')(layer)
-
-    reg_conv_3d_model_double_in = Model(inputs=[video_input], outputs=[video_features])
-    reg_conv_3d_model_double_in.summary()
-    return reg_conv_3d_model_double_ins
+def create_reg_resnet18_3D(img_x,img_y,ch_n,seq_len,tgt_size):
+    resnet18_3D = Resnet3DBuilder.build_resnet_18((seq_len, img_x, img_y, ch_n), tgt_size)
+    resnet18_3D.layers.pop()
+    layer = Dense(32,activation='relu')(resnet18_3D.output)
+    resnet18_3D.layers[-1].outbound_nodes = []
+    resnet18_3D.outputs = [resnet18_3D.layers[-1].output]
+    output = resnet18_3D.get_layer('flatten_1').output
+    output = Dense(32, activation='relu')(output) 
+    output = Dense(1, activation='linear')(output)
+    reg_resnet18_3D = Model(resnet18_3D.input, output)
+    return reg_resnet18_3D
